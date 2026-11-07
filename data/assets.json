@@ -1,0 +1,624 @@
+{
+ "facility": "FaultZero Data Hall 1 (simulated)",
+ "note": "Draft layout. Binitha owns this file.",
+ "assets": [
+  {
+   "id": "UTIL",
+   "type": "utility",
+   "name": "Utility feed",
+   "feeds": [
+    "UPS-A",
+    "UPS-B",
+    "CH-1",
+    "CH-2",
+    "CH-3"
+   ],
+   "limit": null,
+   "x": 0,
+   "y": 0
+  },
+  {
+   "id": "GEN-1",
+   "type": "generator",
+   "name": "Backup generator",
+   "feeds": [
+    "UPS-A",
+    "UPS-B"
+   ],
+   "limit": null,
+   "x": 0,
+   "y": 2
+  },
+  {
+   "id": "UPS-A",
+   "type": "ups",
+   "name": "UPS A",
+   "feeds": [
+    "PDU-1",
+    "PDU-2"
+   ],
+   "limit": {
+    "metric": "battery_min",
+    "min": 5
+   },
+   "x": 2,
+   "y": 0
+  },
+  {
+   "id": "UPS-B",
+   "type": "ups",
+   "name": "UPS B",
+   "feeds": [
+    "PDU-3",
+    "PDU-4"
+   ],
+   "limit": {
+    "metric": "battery_min",
+    "min": 5
+   },
+   "x": 2,
+   "y": 2
+  },
+  {
+   "id": "PDU-1",
+   "type": "pdu",
+   "name": "PDU 1 (row A)",
+   "feeds": [
+    "RACK-A1",
+    "RACK-A2",
+    "RACK-A3",
+    "RACK-A4",
+    "RACK-A5",
+    "RACK-A6"
+   ],
+   "limit": {
+    "metric": "load_pct",
+    "max": 90
+   },
+   "x": 4,
+   "y": 0
+  },
+  {
+   "id": "PDU-2",
+   "type": "pdu",
+   "name": "PDU 2 (row B)",
+   "feeds": [
+    "RACK-B1",
+    "RACK-B2",
+    "RACK-B3",
+    "RACK-B4",
+    "RACK-B5",
+    "RACK-B6"
+   ],
+   "limit": {
+    "metric": "load_pct",
+    "max": 90
+   },
+   "x": 4,
+   "y": 1
+  },
+  {
+   "id": "PDU-3",
+   "type": "pdu",
+   "name": "PDU 3 (row C)",
+   "feeds": [
+    "RACK-C1",
+    "RACK-C2",
+    "RACK-C3",
+    "RACK-C4",
+    "RACK-C5",
+    "RACK-C6"
+   ],
+   "limit": {
+    "metric": "load_pct",
+    "max": 90
+   },
+   "x": 4,
+   "y": 2
+  },
+  {
+   "id": "PDU-4",
+   "type": "pdu",
+   "name": "PDU 4 (row D)",
+   "feeds": [
+    "RACK-D1",
+    "RACK-D2",
+    "RACK-D3",
+    "RACK-D4",
+    "RACK-D5",
+    "RACK-D6"
+   ],
+   "limit": {
+    "metric": "load_pct",
+    "max": 90
+   },
+   "x": 4,
+   "y": 3
+  },
+  {
+   "id": "CH-1",
+   "type": "chiller",
+   "name": "Chiller 1",
+   "feeds": [
+    "CRAH-1",
+    "CRAH-2",
+    "CRAH-3"
+   ],
+   "limit": {
+    "metric": "supply_temp_c",
+    "max": 15
+   },
+   "x": 0,
+   "y": 5,
+   "standby": false
+  },
+  {
+   "id": "CH-2",
+   "type": "chiller",
+   "name": "Chiller 2",
+   "feeds": [
+    "CRAH-4",
+    "CRAH-5",
+    "CRAH-6"
+   ],
+   "limit": {
+    "metric": "supply_temp_c",
+    "max": 15
+   },
+   "x": 0,
+   "y": 6,
+   "standby": false
+  },
+  {
+   "id": "CH-3",
+   "type": "chiller",
+   "name": "Chiller 3 (backup)",
+   "feeds": [],
+   "limit": {
+    "metric": "supply_temp_c",
+    "max": 15
+   },
+   "x": 0,
+   "y": 7,
+   "standby": true
+  },
+  {
+   "id": "CRAH-1",
+   "type": "crah",
+   "name": "Cooling unit 1",
+   "feeds": [
+    "RACK-A1",
+    "RACK-A2",
+    "RACK-A3",
+    "RACK-A4",
+    "RACK-A5",
+    "RACK-A6"
+   ],
+   "limit": {
+    "metric": "supply_air_c",
+    "max": 24
+   },
+   "x": 6,
+   "y": 0
+  },
+  {
+   "id": "CRAH-2",
+   "type": "crah",
+   "name": "Cooling unit 2",
+   "feeds": [
+    "RACK-A1",
+    "RACK-A2",
+    "RACK-A3",
+    "RACK-A4",
+    "RACK-A5",
+    "RACK-A6",
+    "RACK-B1",
+    "RACK-B2",
+    "RACK-B3",
+    "RACK-B4",
+    "RACK-B5",
+    "RACK-B6"
+   ],
+   "limit": {
+    "metric": "supply_air_c",
+    "max": 24
+   },
+   "x": 6,
+   "y": 1
+  },
+  {
+   "id": "CRAH-3",
+   "type": "crah",
+   "name": "Cooling unit 3",
+   "feeds": [
+    "RACK-B1",
+    "RACK-B2",
+    "RACK-B3",
+    "RACK-B4",
+    "RACK-B5",
+    "RACK-B6"
+   ],
+   "limit": {
+    "metric": "supply_air_c",
+    "max": 24
+   },
+   "x": 6,
+   "y": 2
+  },
+  {
+   "id": "CRAH-4",
+   "type": "crah",
+   "name": "Cooling unit 4",
+   "feeds": [
+    "RACK-C1",
+    "RACK-C2",
+    "RACK-C3",
+    "RACK-C4",
+    "RACK-C5",
+    "RACK-C6"
+   ],
+   "limit": {
+    "metric": "supply_air_c",
+    "max": 24
+   },
+   "x": 6,
+   "y": 3
+  },
+  {
+   "id": "CRAH-5",
+   "type": "crah",
+   "name": "Cooling unit 5",
+   "feeds": [
+    "RACK-C1",
+    "RACK-C2",
+    "RACK-C3",
+    "RACK-C4",
+    "RACK-C5",
+    "RACK-C6",
+    "RACK-D1",
+    "RACK-D2",
+    "RACK-D3",
+    "RACK-D4",
+    "RACK-D5",
+    "RACK-D6"
+   ],
+   "limit": {
+    "metric": "supply_air_c",
+    "max": 24
+   },
+   "x": 6,
+   "y": 4
+  },
+  {
+   "id": "CRAH-6",
+   "type": "crah",
+   "name": "Cooling unit 6",
+   "feeds": [
+    "RACK-D1",
+    "RACK-D2",
+    "RACK-D3",
+    "RACK-D4",
+    "RACK-D5",
+    "RACK-D6"
+   ],
+   "limit": {
+    "metric": "supply_air_c",
+    "max": 24
+   },
+   "x": 6,
+   "y": 5
+  },
+  {
+   "id": "RACK-A1",
+   "type": "rack",
+   "name": "Rack A1",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 9,
+   "y": 0
+  },
+  {
+   "id": "RACK-A2",
+   "type": "rack",
+   "name": "Rack A2",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 10,
+   "y": 0
+  },
+  {
+   "id": "RACK-A3",
+   "type": "rack",
+   "name": "Rack A3",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 11,
+   "y": 0
+  },
+  {
+   "id": "RACK-A4",
+   "type": "rack",
+   "name": "Rack A4",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 12,
+   "y": 0
+  },
+  {
+   "id": "RACK-A5",
+   "type": "rack",
+   "name": "Rack A5",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 13,
+   "y": 0
+  },
+  {
+   "id": "RACK-A6",
+   "type": "rack",
+   "name": "Rack A6",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 14,
+   "y": 0
+  },
+  {
+   "id": "RACK-B1",
+   "type": "rack",
+   "name": "Rack B1",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 9,
+   "y": 2
+  },
+  {
+   "id": "RACK-B2",
+   "type": "rack",
+   "name": "Rack B2",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 10,
+   "y": 2
+  },
+  {
+   "id": "RACK-B3",
+   "type": "rack",
+   "name": "Rack B3",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 11,
+   "y": 2
+  },
+  {
+   "id": "RACK-B4",
+   "type": "rack",
+   "name": "Rack B4",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 12,
+   "y": 2
+  },
+  {
+   "id": "RACK-B5",
+   "type": "rack",
+   "name": "Rack B5",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 13,
+   "y": 2
+  },
+  {
+   "id": "RACK-B6",
+   "type": "rack",
+   "name": "Rack B6",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 14,
+   "y": 2
+  },
+  {
+   "id": "RACK-C1",
+   "type": "rack",
+   "name": "Rack C1",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 9,
+   "y": 4
+  },
+  {
+   "id": "RACK-C2",
+   "type": "rack",
+   "name": "Rack C2",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 10,
+   "y": 4
+  },
+  {
+   "id": "RACK-C3",
+   "type": "rack",
+   "name": "Rack C3",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 11,
+   "y": 4
+  },
+  {
+   "id": "RACK-C4",
+   "type": "rack",
+   "name": "Rack C4",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 12,
+   "y": 4
+  },
+  {
+   "id": "RACK-C5",
+   "type": "rack",
+   "name": "Rack C5",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 13,
+   "y": 4
+  },
+  {
+   "id": "RACK-C6",
+   "type": "rack",
+   "name": "Rack C6",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 14,
+   "y": 4
+  },
+  {
+   "id": "RACK-D1",
+   "type": "rack",
+   "name": "Rack D1",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 9,
+   "y": 6
+  },
+  {
+   "id": "RACK-D2",
+   "type": "rack",
+   "name": "Rack D2",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 10,
+   "y": 6
+  },
+  {
+   "id": "RACK-D3",
+   "type": "rack",
+   "name": "Rack D3",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 11,
+   "y": 6
+  },
+  {
+   "id": "RACK-D4",
+   "type": "rack",
+   "name": "Rack D4",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 12,
+   "y": 6
+  },
+  {
+   "id": "RACK-D5",
+   "type": "rack",
+   "name": "Rack D5",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 13,
+   "y": 6
+  },
+  {
+   "id": "RACK-D6",
+   "type": "rack",
+   "name": "Rack D6",
+   "feeds": [],
+   "limit": {
+    "metric": "inlet_temp_c",
+    "warn": 27,
+    "max": 32
+   },
+   "x": 14,
+   "y": 6
+  }
+ ]
+}
