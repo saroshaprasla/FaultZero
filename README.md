@@ -1,27 +1,73 @@
 # FaultZero
 
-**See the chain before it breaks.**
+**See the chain before it breaks.** FaultZero predicts how a data center failure will spread over the next hour, tests fixes in a live digital twin, and lets an operator approve the one that works.
 
-FaultZero is an operations console for a data center, built around a live digital twin. When equipment fails, it plays the next hour forward, shows what fails next and why, has an NVIDIA Nemotron agent test fixes in the twin, and waits for a human to approve one.
+HackUTD 2026: Zero Day · Tracks: NMC², CBRE, NVIDIA, HackUTD Design
 
-Built at HackUTD 2026: Zero Day by Sarosha, Binitha and Naomi.
+Team: Sarosha, Binitha, Naomi
+
+**Live app:** coming soon
+
+Demo video: coming soon · Devpost: coming soon
+
+| ⏱ 12 min | 🚨 141 / 141 | 🛡 15 / 15 | 💰 $10,200 → $0 | ⚡ ~9 ms |
+| :---: | :---: | :---: | :---: | :---: |
+| median head start over the facility alarm | overheating incidents warned in advance (alarm: 0) | hidden sensor attacks caught (alarm: 0) | exposure removed by one approved fix | to simulate the next 60 minutes |
+
+![FaultZero control room during a chiller failure](docs/screenshots/incident.jpg)
+
+<sub>Chiller 2 has tripped. FaultZero warned 10 minutes before the alarms, predicts 12 racks will overheat, and Nemotron's verified plan brings that to 0.</sub>
 
 ---
 
-## The problem
+## Why we built this
 
-Most data center outages aren't one failure. They're a chain: a chiller trips, cooling units warm up, racks overheat, and the alarm only fires once a temperature limit is already crossed. By then the operator is reacting, not preventing.
+Data center outages are expensive and getting more so. In Uptime Institute's latest outage analysis, **57% of operators said their most recent major outage cost more than $100,000, and 1 in 5 said it cost over $1 million** ([Uptime Institute, 2026](https://www.businesswire.com/news/home/20260513289344/en/Uptime-Announces-Annual-Outage-Analysis-Report-2026)). **Power and cooling problems caused about two-thirds of impactful outages** (54% power, 13% cooling) ([DCD, 2024](https://www.datacenterdynamics.com/en/news/uptime-institute-outages-in-2024-less-frequent-and-severe-but-more-expensive/)).
 
-## What FaultZero does
+Most of these outages aren't one failure. They're a chain: a chiller trips, cooling units warm up, racks overheat. The alarm fires only after a temperature limit is crossed, so the operator is always reacting. We wanted to give operators a head start.
 
-- **Predicts the chain.** The moment something breaks, the twin copies the facility and runs it 60 minutes ahead (about 9 ms). It shows what fails next, when, and the root cause, traced through the power and cooling dependency graph.
-- **Tests fixes first.** An agent powered by NVIDIA Nemotron investigates with tools, tries candidate plans in the twin, and proposes the best ones.
-- **Verified numbers only.** Every plan is re-simulated before an operator sees it: racks overheating with and without the fix, plus illustrative dollars at risk.
-- **A human decides.** Nothing changes until an operator clicks Approve. Each approval creates a maintenance work order with a team, technician, ETA and reserved spare part.
-- **Scrub the future.** A time slider plays the next hour on the 3D twin, with or without the fix.
-- **Catches hacked sensors.** A tampered sensor can freeze at a safe value while its rack overheats. FaultZero flags it from the power draw.
-- **Hands off the shift.** One click summarizes what broke, what was recommended, what was approved and what to watch next.
-- **Break it yourself.** Judges scan a QR code and inject failures from their phone.
+## What it does
+
+1. Watches a live data hall: utility power, generator, UPS, PDUs, chillers, cooling units and 24 server racks
+2. The moment something fails, a **digital twin** plays the next 60 minutes forward and shows what fails next, when, and why
+3. An **NVIDIA Nemotron agent** investigates the incident and tests fixes in the twin
+4. Every proposed plan is **re-verified by the twin** before an operator sees it: racks saved and illustrative dollars at risk
+5. The operator **approves or dismisses**; an approval creates a work order with a team, technician, ETA and spare part
+6. A **time scrubber** plays the next hour with or without the fix
+7. A **tamper check** catches sensors that were hacked to hide a hot rack
+8. **End shift** writes a handoff for the next operator
+9. Judges can **break it from their phone** with a QR code
+
+## See it in 60 seconds
+
+| 1. Break it | 2. See the chain | 3. Approve the fix |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/phone.png" width="240" alt="Judge phone page"> | <img src="docs/screenshots/chain.jpg" width="320" alt="The failure chain spreading through the data hall"> | <img src="docs/screenshots/approved.png" width="240" alt="Approved plan with work order"> |
+| A judge scans the QR code and trips Chiller 2 from their phone | The twin plays the next hour and shows what fails, when, and why | Nemotron's plan is verified in the twin; one click approves it and dispatches a technician |
+
+## How it works
+
+```mermaid
+flowchart LR
+    F[Facility simulator<br/>1 step = 1 minute] -->|live readings| T[Digital twin<br/>60 min ahead in ~9 ms]
+    T -->|what fails next + why| C[Control room]
+    T --> A[Nemotron agent<br/>tool calling]
+    A -->|candidate plans| V[Twin re-verifies<br/>every plan]
+    V -->|racks + $ at risk| C
+    C -->|operator approves| F
+    C --> W[Work order]
+    C --> H[Shift handoff]
+    P[Judge phone page] -->|inject failure| F
+```
+
+```
+facility simulator -> digital twin (next 60 min) -> cascade + root cause -> control room
+                                  |
+                       Nemotron agent -> plans -> twin re-verifies -> operator approves -> work order
+```
+
+<!-- Architecture diagram: save the drawing as docs/architecture.png, then delete this line and the arrows around the next line -->
+<!-- ![FaultZero architecture](docs/architecture.png) -->
 
 ## Pages
 
@@ -29,11 +75,35 @@ Most data center outages aren't one failure. They're a chain: a chiller trips, c
 | --- | --- | --- |
 | Story | `/` | Scroll-driven intro: one night in a data hall going wrong |
 | Control room | `/control` | 3D twin, cascade timeline, agent plans, time scrubber, shift handoff |
-| Break my data center | `/break` | Phone page opened from the QR code to inject failures |
+| Break my data center | `/break` | Phone page from the QR code that injects failures |
+
+## The simulated facility
+
+| Part | Count | Fails as |
+| --- | --- | --- |
+| Utility feed + backup generator | 1 + 1 | Grid loss |
+| UPS units, PDUs | 2, 4 | Battery runs out when the grid and generator are down |
+| Chillers | 3 (1 standby) | Trip, or partial loss of capacity |
+| Cooling units (CRAH) | 6 | Fan wearing out |
+| Server racks | 24 (rows A to D) | Overheat above 27°C (warning) and 32°C (critical) |
+| Rack sensors | 24 | Go silent, or get spoofed to hide heat |
+
+Failures have an adjustable **severity** (30% to 100%). Operators can start the backup chiller, raise fan speeds, start the generator, shift load off a row, or isolate a rack.
+
+## The AI
+
+| Part | What it does | Why it's trustworthy |
+| --- | --- | --- |
+| Digital twin | Copies the facility and steps it 60 minutes ahead | Reads the cause (broken equipment), not just rising temperatures |
+| Cascade engine | Records the first limit crossing per asset and walks the dependency graph for the root cause | Every prediction says *because X failed* |
+| NVIDIA Nemotron agent | Uses 6 tools: incident, forecast, asset, mitigations, simulate plan, submit plans | Never reports its own numbers; every plan is re-simulated and ranked by the twin |
+| Scripted planner | Runs the same tools if the NVIDIA API is unreachable | The demo never breaks |
 
 ## Results
 
-We ran 200 random failures (random equipment, severity 30 to 100%) and compared three ways of warning an operator. To keep the twin honest, its random noise was reseeded and it mis-estimated each failure's severity by up to 30%.
+200 random failures (random equipment, severity 30% to 100%). We compared three ways of warning an operator. To keep the twin honest, its random noise was reseeded and it mis-estimated each failure's severity by up to 30%.
+
+![Results: FaultZero warns a median 12 minutes ahead vs 9 for a trend line and 0 for the alarm](docs/screenshots/results.png)
 
 | Of 141 equipment failures that overheated a rack | Fixed alarm | Trend-line forecast | FaultZero twin |
 | --- | --- | --- | --- |
@@ -42,32 +112,47 @@ We ran 200 random failures (random equipment, severity 30 to 100%) and compared 
 | Warned 10+ minutes ahead | 0 | 68 | **101** |
 | Warned the minute the equipment failed | 0 | 0 | **94** |
 
-- The twin warned earlier than the trend line in 133 of 141 cases.
-- Hacked or silent sensors: the alarm and trend line caught 0; the tamper check flagged all 15 that overheated a rack.
-- No false alarms in 100 calm runs.
+- The twin warned earlier than the trend line in **133 of 141** cases
+- Hacked or silent sensors: the alarm and trend line caught **0**; the tamper check flagged **all 15** that overheated a rack
+- **No false alarms** in 100 calm runs
 
-Reproduce with `python sim/evaluate_twin.py` (results in `sim/twin_results.json`).
+Reproduce: `python sim/evaluate_twin.py` (writes `sim/twin_results.json`).
 
-**Limitations:** all data is simulated, and the twin uses the same physics as the simulated facility, so real-world accuracy depends on calibrating the twin to a real building's sensor data. Dollar figures are illustrative ($1,000 per rack-hour above 27°C).
+We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse than a simple trend line, because it only sees temperatures after they start rising. That result is why FaultZero models the cause instead of forecasting the symptom.
 
-We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse than the trend line, because it only sees temperatures after they start rising. That's why FaultZero models the cause instead of forecasting the symptom.
+**Honest limitation:** all data is simulated, and the twin uses the same physics as the simulated facility. In a real building, the twin would first need to be calibrated against the building's sensor data. That's our next step.
 
-## How it's built
+## The hard parts we solved
 
-| Part | Files | What it does |
-| --- | --- | --- |
-| Facility model | `backend/fake_sim.py`, `data/assets.json` | Minute-by-minute model of utility power, generator, 2 UPS, 4 PDUs, 3 chillers, 6 cooling units and 24 racks; failures with severity; operator actions |
-| Digital twin | `backend/cascade.py` | Copies the state, runs 60 minutes ahead, records the first limit crossing per asset and the root-cause path |
-| Agent | `backend/agent.py` | Nemotron with tool calling (incident, forecast, asset, mitigations, simulate plan); plans re-verified and ranked by the twin; scripted fallback using the same tools |
-| Server | `backend/main.py` | FastAPI, live updates over Server-Sent Events, approvals, decision log, shift handoff, QR code |
-| Business | `business/impact.py`, `business/dispatch.py` | Dollars at risk from predicted temperatures; work orders for approved plans |
-| Frontend | `frontend/` | three.js twin with bloom and animated power and water flow, console UI, story page |
-| Judge page | `phone/index.html` | Mobile page that injects failures |
-| Evaluation | `sim/evaluate_twin.py`, `sim/forecast.py` | The results above; trend-line baseline |
+- **Predicting a chain, not a number.** The twin deep-copies the whole facility and steps it 60 minutes ahead in ~9 ms, so it can run on every live update and inside every plan the agent tests.
+- **Root cause, not just symptoms.** Every predicted failure walks the power and cooling dependency graph back to what started it, so the operator reads *"Row C passes 32°C in 11 min, because Chiller 2 tripped"*.
+- **An agent you can trust.** Nemotron proposes plans through tool calls, but the numbers on every card come from re-simulating the plan in the twin. If its explanation quotes different numbers, we replace it with the verified one.
+- **Never a dead demo.** If the NVIDIA API is unreachable, a scripted planner runs the same tools and the same verification.
+- **Seeing what sensors hide.** A spoofed sensor reads "fine" while its rack overheats. We flag it from the power draw jump against a flat temperature reading.
+- **One live stream for everything.** Server-Sent Events push each simulated minute, the cascade and every agent step to the 3D view, timeline and plan cards at once.
+- **Honest evaluation.** We tested against two baselines on 200 incidents, handicapped our own twin, and reported where our ML model lost.
 
-**Stack:** Python, FastAPI, Server-Sent Events, JavaScript, three.js, HTML/CSS, NVIDIA Nemotron (NVIDIA API), NumPy.
+## Responsible design
 
-## Run it locally
+- A human approves every action, and every decision is logged
+- It doesn't control any real equipment; all incidents are simulated
+- Agent numbers are always verified by the twin, never taken from the model's text
+- Dollar figures are labeled illustrative ($1,000 per rack-hour above 27°C)
+- The judge page has a cooldown, so one person can't spam failures
+
+## Repo layout
+
+| Folder | What's in it |
+| --- | --- |
+| `backend/` | Facility simulator, digital twin and cascade engine, Nemotron agent, FastAPI server |
+| `business/` | Dollars at risk, work-order dispatch, shift handoff |
+| `frontend/` | 3D control room (three.js) and story page |
+| `phone/` | Judge "break my data center" page |
+| `sim/` | Evaluation, trend-line baseline, ML experiment |
+| `data/` | Facility layout and decision logs |
+| `docs/` | Data formats, API and screenshots |
+
+## How to run
 
 ```bash
 python3 -m venv .venv
@@ -76,24 +161,35 @@ pip install -r requirements.txt
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000
 ```
 
-Open http://localhost:8000.
-
-Optional settings in a `.env` file:
+Open http://localhost:8000. Optional `.env` settings:
 
 ```
-NVIDIA_API_KEY=your-key        # use Nemotron; without it, the scripted planner runs
-PUBLIC_URL=https://your.domain # makes the QR code point to your public address
+NVIDIA_API_KEY=your-key         # use Nemotron; without it the scripted planner runs
+PUBLIC_URL=https://your.domain  # QR code points to your public address
 ```
 
 ## Team
 
-- **Sarosha:** digital twin, cascade engine, Nemotron agent, server, 3D console and story page
+- **Sarosha:** digital twin, cascade engine, Nemotron agent, server, 3D control room and story page
 - **Binitha:** forecasting baseline, model evaluation, presentation
 - **Naomi:** business impact, work-order dispatch, judge phone page, domain
 
 ## What's next
 
 - Calibrate the twin against real building telemetry (BACnet / Modbus)
-- Real weather and load forecasts feeding the twin
+- Real weather and IT load forecasts feeding the twin
 - Send work orders straight to maintenance systems
 - Multiple data halls and sites
+
+## Open-source resources
+
+- [FastAPI](https://fastapi.tiangolo.com/) · [Uvicorn](https://www.uvicorn.org/)
+- [three.js](https://threejs.org/)
+- [NVIDIA API catalog (Nemotron)](https://build.nvidia.com/) · [OpenAI Python client](https://github.com/openai/openai-python)
+- [NumPy](https://numpy.org/) · [scikit-learn](https://scikit-learn.org/)
+- [python-qrcode](https://github.com/lincolnloop/python-qrcode)
+
+## Sources
+
+- [Uptime Institute Annual Outage Analysis 2026 (Business Wire)](https://www.businesswire.com/news/home/20260513289344/en/Uptime-Announces-Annual-Outage-Analysis-Report-2026)
+- [Uptime Institute outages in 2024 (DatacenterDynamics)](https://www.datacenterdynamics.com/en/news/uptime-institute-outages-in-2024-less-frequent-and-severe-but-more-expensive/)

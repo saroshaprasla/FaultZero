@@ -226,3 +226,4 @@ data/handoff_acks.jsonl
 
 # Generated work orders
 /data/workorders.jsonl
+*.zip
