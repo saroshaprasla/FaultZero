@@ -441,6 +441,14 @@ function select(id) {
   if (latest) renderSide(latest, predict(latest));
 }
 
+function calibHtml(snap) {
+  const cal = Object.entries(snap.calibration || {}).filter(([, e]) => e.readings >= 2);
+  if (!cal.length) return "";
+  const txt = cal.map(([id, e]) => e.param === "capacity"
+    ? `${esc(assets[id]?.name || id)} at ~${Math.round(e.estimate * 100)}% capacity`
+    : `${esc(assets[id]?.name || id)} fan losing ~${e.estimate.toFixed(1)}% per min`).join(" · ");
+  return `<p class="calib" title="The twin is never told how bad the failure is. It infers it from the last two sensor readings.">Twin calibrated from sensors: <b>${txt}</b></p>`;
+}
 function sparkline(id, metric) {
   const h = (hist[id] || []).filter(p => typeof p[metric] === "number");
   if (h.length < 2) return "";
@@ -449,6 +457,41 @@ function sparkline(id, metric) {
   const W = 320, H = 56;
   const line = vals.map((v, i) => `${(i / (vals.length - 1)) * W},${H - 4 - ((v - lo) / (hi - lo)) * (H - 8)}`).join(" ");
   return `<svg class="spark" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none"><polyline points="${line}" fill="none" stroke="#7fe3f0" stroke-width="2"/></svg>`;
+}
+
+// ---------- long-term history stored in Tiger Data (only when TIGER_URL is set on the server) ----------
+const tigerHist = {};
+let tigerOn = false;
+fetch("/api/tiger").then(r => r.json()).then(t => { tigerOn = !!t.enabled; }).catch(() => {});
+async function pollTiger() {
+  if (tigerOn && selected && ["rack", "crah", "chiller"].includes(assets[selected]?.type)) {
+    try {
+      const d = await (await fetch(`/api/history?asset=${encodeURIComponent(selected)}&minutes=60&bucket=5`)).json();
+      if (d.ok) tigerHist[selected] = d;
+    } catch (e) { /* history is optional; never break the console */ }
+  }
+  setTimeout(pollTiger, 4000);
+}
+setTimeout(pollTiger, 1500);
+function tigerBlock(id) {
+  if (!tigerOn) return "";
+  const d = tigerHist[id];
+  if (!d || !d.points || d.points.length < 2) return `<div class="tiger"><span class="tg-h">Tiger Data history</span><span class="tg-sub">Collecting readings…</span></div>`;
+  const pts = d.points.filter(p => p.max != null);
+  const lo = Math.min(...pts.map(p => p.min)) - 0.3, hi = Math.max(...pts.map(p => p.max)) + 0.3;
+  const W = 320, H = 70, bw = W / pts.length;
+  const y = v => H - 4 - ((v - lo) / (hi - lo)) * (H - 10);
+  const warn = assets[id]?.limit?.warn;
+  const bars = pts.map((p, i) => {
+    const hot = warn != null && p.max >= warn;
+    return `<rect x="${i * bw + 2}" y="${y(p.max)}" width="${Math.max(2, bw - 4)}" height="${Math.max(2, y(p.min) - y(p.max))}" rx="1.5" fill="${hot ? "#ff6a2b" : "#22e9ff"}" opacity=".35"/>
+      <rect x="${i * bw + 2}" y="${y(p.avg) - 1}" width="${Math.max(2, bw - 4)}" height="2.5" fill="${hot ? "#ff6a2b" : "#22e9ff"}"/>`;
+  }).join("");
+  const warnLine = warn != null && warn > lo && warn < hi ? `<line x1="0" x2="${W}" y1="${y(warn)}" y2="${y(warn)}" stroke="#ffb21e" stroke-dasharray="4 4" stroke-width="1"/>` : "";
+  const last = pts[pts.length - 1];
+  return `<div class="tiger"><span class="tg-h">Tiger Data history <em>· ${d.bucket_min}-min buckets · ${d.rows_this_run.toLocaleString()} rows this run</em></span>
+    <svg class="tg-chart" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Temperature history">${warnLine}${bars}</svg>
+    <span class="tg-sub">Last bucket: avg ${last.avg}°C, max ${last.max}°C${warn != null ? ` · dashed line = ${warn}°C warning` : ""}</span></div>`;
 }
 
 const esc = t => String(t ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -474,6 +517,7 @@ function renderSide(snap, cascade) {
     inc = `<div class="card chamfer incident ${racks ? "alert" : "calm"}">
       <div class="inc-head"><span class="inc-dot"></span><h2>${esc(a ? a.name : first.asset)} ${KIND[first.kind] || first.kind}</h2></div>
       <p class="inc-sub">${snap.minute - first.minute} min ago${uniq > 1 ? `, plus ${uniq - 1} more failure${uniq > 2 ? "s" : ""}` : ""}</p>
+      ${calibHtml(snap)}
       ${raceHtml(snap, first, cascade)}
       <div class="readouts2">
         <div><b class="${racks ? "hot" : ""}">${racks}</b><span>racks at risk this hour</span></div>
@@ -496,7 +540,7 @@ function renderSide(snap, cascade) {
     const feeds = a.feeds.length ? `<p>Feeds ${a.feeds.length > 4 ? a.feeds.length + " pieces of equipment" : names(a.feeds)}.</p>` : "";
     const fedBy = parents[selected]?.length ? `<p>Depends on ${names(parents[selected])}.</p>` : "";
     html = `<div class="card chamfer"><h2>${esc(a.name)}</h2><p>Status: ${s.status.replace("_", " ")}</p>
-      <dl class="facts">${facts}</dl>${METRIC[a.type] ? sparkline(selected, METRIC[a.type]) : ""}${fedBy}${feeds}</div>`;
+      <dl class="facts">${facts}</dl>${METRIC[a.type] ? sparkline(selected, METRIC[a.type]) : ""}${tigerBlock(selected)}${fedBy}${feeds}</div>`;
   } else if (!failures.length) {
     html = `<div class="card chamfer"><h2>Select any equipment</h2><p>Click a rack, chiller or cooling unit on the map to see its live readings and what it depends on.</p></div>`;
   }

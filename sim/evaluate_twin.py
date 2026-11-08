@@ -36,7 +36,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "sim"))
 
-from backend.fake_sim import FakeFacility, load_assets  # noqa: E402
+from backend.fake_sim import NOMINAL_PHYSICS, FakeFacility, load_assets  # noqa: E402
+from backend import calibrate  # noqa: E402
 from forecast import predict_time_to_limit  # noqa: E402
 
 WARN = 27.0
@@ -59,9 +60,30 @@ def reported_temps(f):
     return {r: snap[r]["inlet_temp_c"] for r in RACKS}
 
 
+def _first_crossing(t):
+    for m in range(1, HORIZON + 1):
+        t.step()
+        if any(t.s[r]["inlet_temp_c"] >= WARN for r in RACKS):
+            return m
+    return None
+
+
+def calibrated_predicts(f, prev_snap, rng):
+    """Self-calibrating twin: never told the severity. It estimates it from the last two
+    readings (backend/calibrate.py) and always assumes nominal physics."""
+    t = f.copy()
+    t.rng = random.Random(rng.random())
+    t.physics = dict(NOMINAL_PHYSICS)
+    for r in list(t.hidden_heat):
+        t.hidden_heat[r] = 0.0
+    calibrate.apply(t, calibrate.estimate(prev_snap, f.snapshot()))
+    return _first_crossing(t)
+
+
 def twin_predicts(f, rng):
     """Imperfect twin: returns minutes until the first predicted rack crossing, or None."""
     t = f.copy()
+    t.physics = dict(NOMINAL_PHYSICS)  # the twin only knows the nominal physics
     t.rng = random.Random(rng.random())
     err = rng.uniform(0.7, 1.3)
     for i, s in t.s.items():
@@ -90,9 +112,12 @@ def random_incident(rng):
     return kind, asset, round(rng.uniform(0.3, 1.0), 2)
 
 
-def run_incident(seed, kind=None, asset=None, severity=1.0):
+def run_incident(seed, kind=None, asset=None, severity=1.0, physics=None):
     rng = random.Random(seed * 7919)
+    crng = random.Random(seed * 104729)  # separate stream so adding this method doesn't change the others
     f = FakeFacility(ASSETS, seed=seed)
+    if physics:
+        f.physics.update(physics)  # the "real" building behaves differently from the twin's model
     for _ in range(rng.randint(5, 30)):           # warm up a random amount
         f.step()
     hist = {r: [] for r in RACKS}
@@ -104,10 +129,12 @@ def run_incident(seed, kind=None, asset=None, severity=1.0):
     if kind:
         f.inject(kind, asset, severity)
 
-    truth = fixed = line = twin = tamper = None
-    twin_done = False
+    truth = fixed = line = twin = tamper = calib = None
+    twin_done = calib_done = False
+    prev_snap = f.snapshot()
     for m in range(0, HORIZON + 1):
         if m > 0:
+            prev_snap = f.snapshot()
             f.step()
             for r, v in reported_temps(f).items():
                 hist[r].append(v)
@@ -130,6 +157,10 @@ def run_incident(seed, kind=None, asset=None, severity=1.0):
             p = twin_predicts(f, rng)
             if p is not None and p <= WINDOW:
                 twin, twin_done = m, True
+        if not calib_done:
+            p = calibrated_predicts(f, prev_snap, crng)
+            if p is not None and p <= WINDOW:
+                calib, calib_done = m, True
         if tamper is None:
             for r in RACKS:
                 if rep[r] is None:
@@ -141,7 +172,7 @@ def run_incident(seed, kind=None, asset=None, severity=1.0):
                     tamper = m
                     break
     return {"seed": seed, "kind": kind, "asset": asset, "severity": severity,
-            "truth": truth, "fixed": fixed, "line": line, "twin": twin, "tamper": tamper}
+            "truth": truth, "fixed": fixed, "line": line, "twin": twin, "tamper": tamper, "calib": calib}
 
 
 def score(rows, method):
@@ -185,6 +216,7 @@ def main():
             "fixed_alarm": score(visible, "fixed"),
             "straight_line_forecast": score(visible, "line"),
             "faultzero_twin": score(visible, "twin"),
+            "faultzero_self_calibrating_twin": score(visible, "calib"),
             "twin_warned_earlier_than_straight_line": sum(
                 1 for r in visible if r["truth"] is not None and r["twin"] is not None
                 and (r["line"] is None or r["twin"] < r["line"])),
@@ -203,6 +235,7 @@ def main():
             "fixed_alarm": sum(1 for r in calm if r["fixed"] is not None),
             "straight_line_forecast": sum(1 for r in calm if r["line"] is not None),
             "faultzero_twin": sum(1 for r in calm if r["twin"] is not None),
+            "faultzero_self_calibrating_twin": sum(1 for r in calm if r["calib"] is not None),
             "faultzero_tamper_check": sum(1 for r in calm if r["tamper"] is not None),
         },
     }

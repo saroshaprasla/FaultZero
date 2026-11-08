@@ -29,12 +29,15 @@ except ImportError:
 from backend.agent import AgentRun
 from backend.cascade import project
 from backend.fake_sim import ACTIONS, FAILURE_KINDS, FakeFacility, load_assets
+from backend.tiger import tiger
+from backend import calibrate
 
 ROOT = Path(__file__).resolve().parent.parent
 TICK_SECONDS = 1.0  # one simulated minute per real second
 
 app = FastAPI(title="FaultZero")
 ASSETS = load_assets()
+ASSET_BY_ID = {a["id"]: a for a in ASSETS}
 state = {"facility": FakeFacility(ASSETS), "latest": None, "future": None, "agent": None}
 DECISIONS = ROOT / "data" / "decisions.jsonl"
 
@@ -43,7 +46,13 @@ def refresh_cascade(snap: dict) -> dict:
     """Project the facility 60 minutes ahead whenever something has broken."""
     fac = state["facility"]
     if any(e["type"] == "failure" for e in fac.events):
-        result = project(fac)
+        cal = snap.get("calibration") or {}
+        if cal:  # forecast from what the sensors reveal, not from the simulator's hidden truth
+            twin = fac.copy()
+            calibrate.apply(twin, cal)
+            result = project(twin)
+        else:
+            result = project(fac)
         snap["cascade"] = result["chain"]
         snap["roots"] = result["roots"]
         state["future"] = {"from_minute": snap["minute"], "frames": result["frames"]}
@@ -65,7 +74,12 @@ def start_agent():
 
 async def ticker():
     while True:
-        state["latest"] = refresh_cascade(state["facility"].step())
+        prev = state.get("prev_snap")
+        snap = state["facility"].step()
+        snap["calibration"] = calibrate.estimate(prev, snap)  # severity inferred from readings alone
+        state["prev_snap"] = {"assets": snap["assets"]}
+        tiger.record_snapshot(snap, ASSET_BY_ID)
+        state["latest"] = refresh_cascade(snap)
         await asyncio.sleep(TICK_SECONDS)
 
 
@@ -148,7 +162,9 @@ def inject(req: InjectRequest):
     except ValueError as e:
         raise HTTPException(400, str(e))
     start_agent()
-    state["latest"] = refresh_cascade(state["facility"].snapshot())
+    snap = state["facility"].snapshot()
+    tiger.record_event(snap["minute"], snap["t"], "failure", req.asset or ev.get("asset"), ev)
+    state["latest"] = refresh_cascade(snap)
     return ev
 
 
@@ -158,7 +174,9 @@ def action(req: ActionRequest):
         ev = state["facility"].apply(req.action, req.asset)
     except ValueError as e:
         raise HTTPException(400, str(e))
-    state["latest"] = refresh_cascade(state["facility"].snapshot())
+    snap = state["facility"].snapshot()
+    tiger.record_event(snap["minute"], snap["t"], "action", req.asset, ev)
+    state["latest"] = refresh_cascade(snap)
     return ev
 
 
@@ -166,6 +184,7 @@ def action(req: ActionRequest):
 def reset():
     state["facility"] = FakeFacility(ASSETS)
     state["agent"] = None
+    tiger.new_run()
     state["latest"] = refresh_cascade(state["facility"].snapshot())
     return {"ok": True}
 
@@ -210,6 +229,10 @@ def agent_approve(choice: PlanChoice):
     except Exception:
         entry["work_order"] = None
     log_decision(entry)
+    snap = fac.snapshot()
+    tiger.record_event(snap["minute"], snap["t"], "approved", None,
+                       {"plan": plan["name"], "actions": plan["actions"], "predicted": plan["outcome"],
+                        "source": run.state["source"], "work_order": entry["work_order"]})
     run.state["decision"] = {"index": choice.index, "status": "approved", "minute": fac.minute,
                              "work_order": entry["work_order"]}
     state["latest"] = refresh_cascade(fac.snapshot())
@@ -354,6 +377,20 @@ def options():
 def _frame(fac) -> dict:
     keep = ("status", "inlet_temp_c", "supply_temp_c", "supply_air_c", "battery_min", "fan_pct", "load_pct", "power_kw")
     return {"minute": fac.minute, "assets": {k: {x: v[x] for x in keep if x in v} for k, v in fac.snapshot()["assets"].items()}}
+
+
+@app.get("/api/tiger")
+def tiger_status():
+    """Is facility history being stored in Tiger Data?"""
+    return tiger.status()
+
+
+@app.get("/api/history")
+def history(asset: str, minutes: int = 60, bucket: int = 5):
+    """An asset's temperature history from the Tiger Data hypertable (time_bucket averages)."""
+    if asset not in ASSET_BY_ID:
+        raise HTTPException(404, "Unknown asset")
+    return tiger.history(asset, max(5, min(minutes, 720)), max(1, min(bucket, 60)))
 
 
 @app.get("/api/eval")

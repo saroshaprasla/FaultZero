@@ -44,6 +44,16 @@
       "warned_the_minute_it_failed": 94,
       "false_alarm_incidents": 6
     },
+    "faultzero_self_calibrating_twin": {
+      "incidents_that_really_overheated": 141,
+      "warned_before_overheating": 141,
+      "early_warning_rate": 1.0,
+      "noticed_at_all_within_60_min": 141,
+      "median_minutes_of_warning": 11,
+      "warned_10_plus_min_ahead": 89,
+      "warned_the_minute_it_failed": 36,
+      "false_alarm_incidents": 6
+    },
     "twin_warned_earlier_than_straight_line": 133,
     "note_on_false_alarms": "the 'false alarms' are mild fan failures that cross 27\u00b0C just after the 60-minute watch window, so they are late, not wrong"
   },
@@ -58,6 +68,7 @@
     "fixed_alarm": 0,
     "straight_line_forecast": 0,
     "faultzero_twin": 0,
+    "faultzero_self_calibrating_twin": 0,
     "faultzero_tamper_check": 0
   }
 }

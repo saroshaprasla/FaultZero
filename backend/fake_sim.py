@@ -19,6 +19,14 @@ FAILURE_KINDS = ["chiller_trip", "fan_degradation", "grid_loss", "sensor_silent"
 ACTIONS = ["start_backup_chiller", "raise_fan_speed", "start_generator", "shift_load", "isolate_rack"]
 
 
+NOMINAL_PHYSICS = {
+    "rack_rate": 0.15,    # how fast a rack's inlet air follows its cooling (per minute)
+    "rack_offset": 4.5,   # rack inlet above supply air at zero load (degC)
+    "air_rate": 0.25,     # how fast a cooling unit's supply air follows chilled water
+    "chill_loss": 15.0,   # how much warmer chilled water settles when a chiller loses all capacity
+}
+
+
 def load_assets(path: Path = DATA / "assets.json") -> List[dict]:
     with open(path) as f:
         return json.load(f)["assets"]
@@ -62,6 +70,9 @@ class FakeFacility:
         self.reported: Dict[str, Optional[float]] = {}
         self.base_power = {i: v["power_kw"] for i, v in self.s.items() if self.assets[i]["type"] == "rack"}
         self.hidden_heat: Dict[str, float] = {}  # extra heat an attacker hides behind a spoofed sensor
+        # physics constants. The "real" building can differ from what the twin assumes;
+        # sim/robustness.py perturbs these to test how wrong the twin can be and still warn early.
+        self.physics: Dict[str, float] = dict(NOMINAL_PHYSICS)
 
     # ---------- failures and actions ----------
     def inject(self, kind: str, asset: Optional[str] = None, severity: float = 1.0) -> dict:
@@ -159,7 +170,7 @@ class FakeFacility:
                 c["supply_temp_c"] += (7.0 - c["supply_temp_c"]) * 0.3
                 c["load_pct"] = round(min(100, 65 + (self.outdoor_temp_c() - 30) * 3 + rng.uniform(-2, 2)), 1)
             elif c["status"] == "degraded":  # partial capacity: water settles warmer the more capacity is lost
-                target = 7.0 + (1 - c.get("capacity", 1.0)) * 15.0
+                target = 7.0 + (1 - c.get("capacity", 1.0)) * self.physics["chill_loss"]
                 c["supply_temp_c"] += (target - c["supply_temp_c"]) * 0.15
                 c["load_pct"] = 100.0
             elif c["status"] in ("tripped", "no_power"):
@@ -178,7 +189,7 @@ class FakeFacility:
             water = min(s[c]["supply_temp_c"] for c in chillers) if chillers else 22.0
             power = 1.0 if (grid_ok or gen_ok) else 0.0
             target = water + 11 + (70 - u["fan_pct"]) * 0.16 + (1 - power) * 8
-            u["supply_air_c"] = round(u["supply_air_c"] + (target - u["supply_air_c"]) * 0.25, 2)
+            u["supply_air_c"] = round(u["supply_air_c"] + (target - u["supply_air_c"]) * self.physics["air_rate"], 2)
 
         # power
         for i, a in self.assets.items():
@@ -209,8 +220,8 @@ class FakeFacility:
                 r["status"], r["power_kw"] = "ok", self.base_power[i]
             crahs = [c for c in self.fed_by[i] if self.assets[c]["type"] == "crah"]
             air = sum(s[c]["supply_air_c"] for c in crahs) / len(crahs)
-            target = air + 4.5 + r["power_kw"] * 0.05 + self.hidden_heat.get(i, 0.0)
-            r["inlet_temp_c"] = round(r["inlet_temp_c"] + (target - r["inlet_temp_c"]) * 0.15 + rng.uniform(-0.05, 0.05), 2)
+            target = air + self.physics["rack_offset"] + r["power_kw"] * 0.05 + self.hidden_heat.get(i, 0.0)
+            r["inlet_temp_c"] = round(r["inlet_temp_c"] + (target - r["inlet_temp_c"]) * self.physics["rack_rate"] + rng.uniform(-0.05, 0.05), 2)
             if r["status"] != "offline":
                 lim = a["limit"]
                 r["status"] = ("critical" if r["inlet_temp_c"] >= lim["max"]

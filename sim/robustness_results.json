@@ -1,0 +1,231 @@
+{
+  "incidents": 120,
+  "note": "both twins assume nominal physics; only the simulated building changes",
+  "scenarios": {
+    "matches the twin": {
+      "physics": {},
+      "fixed_alarm": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 0,
+        "early_warning_rate": 0.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 0.0,
+        "warned_10_plus_min_ahead": 0,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 0
+      },
+      "straight_line_forecast": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 15.5,
+        "warned_10_plus_min_ahead": 65,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 4
+      },
+      "faultzero_twin": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 20.0,
+        "warned_10_plus_min_ahead": 87,
+        "warned_the_minute_it_failed": 65,
+        "false_alarm_incidents": 4
+      },
+      "faultzero_self_calibrating_twin": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 19.0,
+        "warned_10_plus_min_ahead": 78,
+        "warned_the_minute_it_failed": 26,
+        "false_alarm_incidents": 4
+      }
+    },
+    "racks heat 30% faster": {
+      "physics": {
+        "rack_rate": 0.195
+      },
+      "fixed_alarm": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 0,
+        "early_warning_rate": 0.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 0.0,
+        "warned_10_plus_min_ahead": 0,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 0
+      },
+      "straight_line_forecast": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 14.5,
+        "warned_10_plus_min_ahead": 64,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 4
+      },
+      "faultzero_twin": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 18.5,
+        "warned_10_plus_min_ahead": 77,
+        "warned_the_minute_it_failed": 65,
+        "false_alarm_incidents": 4
+      },
+      "faultzero_self_calibrating_twin": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 17.5,
+        "warned_10_plus_min_ahead": 73,
+        "warned_the_minute_it_failed": 26,
+        "false_alarm_incidents": 4
+      }
+    },
+    "cooling 30% slower": {
+      "physics": {
+        "air_rate": 0.175
+      },
+      "fixed_alarm": {
+        "incidents_that_really_overheated": 115,
+        "warned_before_overheating": 0,
+        "early_warning_rate": 0.0,
+        "noticed_at_all_within_60_min": 115,
+        "median_minutes_of_warning": 0.0,
+        "warned_10_plus_min_ahead": 0,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 0
+      },
+      "straight_line_forecast": {
+        "incidents_that_really_overheated": 115,
+        "warned_before_overheating": 115,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 115,
+        "median_minutes_of_warning": 16,
+        "warned_10_plus_min_ahead": 70,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 5
+      },
+      "faultzero_twin": {
+        "incidents_that_really_overheated": 115,
+        "warned_before_overheating": 115,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 115,
+        "median_minutes_of_warning": 21,
+        "warned_10_plus_min_ahead": 90,
+        "warned_the_minute_it_failed": 65,
+        "false_alarm_incidents": 5
+      },
+      "faultzero_self_calibrating_twin": {
+        "incidents_that_really_overheated": 115,
+        "warned_before_overheating": 115,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 115,
+        "median_minutes_of_warning": 20,
+        "warned_10_plus_min_ahead": 87,
+        "warned_the_minute_it_failed": 26,
+        "false_alarm_incidents": 5
+      }
+    },
+    "chiller failures 30% worse": {
+      "physics": {
+        "chill_loss": 19.5
+      },
+      "fixed_alarm": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 0,
+        "early_warning_rate": 0.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 0.0,
+        "warned_10_plus_min_ahead": 0,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 0
+      },
+      "straight_line_forecast": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 11.5,
+        "warned_10_plus_min_ahead": 61,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 4
+      },
+      "faultzero_twin": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 15.5,
+        "warned_10_plus_min_ahead": 74,
+        "warned_the_minute_it_failed": 65,
+        "false_alarm_incidents": 4
+      },
+      "faultzero_self_calibrating_twin": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 14.5,
+        "warned_10_plus_min_ahead": 70,
+        "warned_the_minute_it_failed": 26,
+        "false_alarm_incidents": 4
+      }
+    },
+    "all three at once": {
+      "physics": {
+        "rack_rate": 0.195,
+        "air_rate": 0.175,
+        "chill_loss": 19.5
+      },
+      "fixed_alarm": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 0,
+        "early_warning_rate": 0.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 0.0,
+        "warned_10_plus_min_ahead": 0,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 0
+      },
+      "straight_line_forecast": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 11.5,
+        "warned_10_plus_min_ahead": 61,
+        "warned_the_minute_it_failed": 0,
+        "false_alarm_incidents": 4
+      },
+      "faultzero_twin": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 15.5,
+        "warned_10_plus_min_ahead": 74,
+        "warned_the_minute_it_failed": 65,
+        "false_alarm_incidents": 4
+      },
+      "faultzero_self_calibrating_twin": {
+        "incidents_that_really_overheated": 116,
+        "warned_before_overheating": 116,
+        "early_warning_rate": 1.0,
+        "noticed_at_all_within_60_min": 116,
+        "median_minutes_of_warning": 14.5,
+        "warned_10_plus_min_ahead": 72,
+        "warned_the_minute_it_failed": 26,
+        "false_alarm_incidents": 4
+      }
+    }
+  }
+}

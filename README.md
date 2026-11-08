@@ -2,17 +2,17 @@
 
 **See the chain before it breaks.** FaultZero predicts how a data center failure will spread over the next hour, tests fixes in a live digital twin, and lets an operator approve the one that works.
 
-HackUTD 2026: Zero Day · Tracks: NMC², CBRE, NVIDIA, HackUTD Design
+HackUTD 2026: Zero Day · Tracks: NMC², CBRE, NVIDIA, HackUTD Design · MLH: GoDaddy Registry domain, Tiger Data
 
 Team: Sarosha, Binitha, Naomi
 
-**Live app:** coming soon
+**Live app: [faultzero.us](https://faultzero.us)** · break it from your phone at [faultzero.us/break](https://faultzero.us/break)
 
 Demo video: coming soon · Devpost: coming soon
 
-| ⏱ 12 min | 🚨 141 / 141 | 🛡 15 / 15 | 💰 $10,200 → $0 | ⚡ ~9 ms |
-| :---: | :---: | :---: | :---: | :---: |
-| median head start over the facility alarm | overheating incidents warned in advance (alarm: 0) | hidden sensor attacks caught (alarm: 0) | exposure removed by one approved fix | to simulate the next 60 minutes |
+| ⏱ 12 min | 🚨 141 / 141 | 🧪 30% wrong physics | 🛡 15 / 15 | ⚡ ~9 ms | ✅ 27 tests |
+| :---: | :---: | :---: | :---: | :---: | :---: |
+| median head start over the facility alarm | overheating incidents warned in advance (alarm: 0) | still 14.5+ min of warning | hidden sensor attacks caught (alarm: 0) | to simulate the next 60 minutes | passing, every push |
 
 ---
 
@@ -37,9 +37,10 @@ Most of these outages aren't one failure. They're a chain: a chiller trips, cool
 ## How it works
 
 ```
-facility simulator -> digital twin (next 60 min) -> cascade + root cause -> control room
-                                  |
-                       Nemotron agent -> plans -> twin re-verifies -> operator approves -> work order
+sensor readings -> self-calibration -> digital twin (next 60 min) -> cascade + root cause -> control room
+       |                                      |
+       v                                      v
+Tiger Data hypertable              Nemotron agent -> plans -> twin re-verifies -> operator approves -> work order
 ```
 
 ## Pages
@@ -70,28 +71,43 @@ Failures have an adjustable **severity** (30% to 100%). Operators can start the 
 | Digital twin | Copies the facility and steps it 60 minutes ahead | Reads the cause (broken equipment), not just rising temperatures |
 | Cascade engine | Records the first limit crossing per asset and walks the dependency graph for the root cause | Every prediction says *because X failed* |
 | NVIDIA Nemotron agent | Uses 6 tools: incident, forecast, asset, mitigations, simulate plan, submit plans | Never reports its own numbers; every plan is re-simulated and ranked by the twin |
+| Self-calibration | Infers how bad a failure is (e.g. a chiller at 38% capacity) from the last two sensor readings | The twin is never told the answer; the live forecast runs on what sensors reveal |
 | Scripted planner | Runs the same tools if the NVIDIA API is unreachable | The demo never breaks |
 
 ## Results
 
-200 random failures (random equipment, severity 30% to 100%). We compared three ways of warning an operator. To keep the twin honest, its random noise was reseeded and it mis-estimated each failure's severity by up to 30%.
+200 random failures (random equipment, severity 30% to 100%). We compared four ways of warning an operator. The **handicapped twin** gets reseeded noise and mis-estimates each failure's severity by up to 30%. The **self-calibrating twin** is never told the severity at all: it estimates it from sensor readings (`backend/calibrate.py`).
 
-| Of 141 equipment failures that overheated a rack | Fixed alarm | Trend-line forecast | FaultZero twin |
-| --- | --- | --- | --- |
-| Warned before overheating | 0 | 141 | 141 |
-| Median warning time | 0 min | 9 min | **12 min** |
-| Warned 10+ minutes ahead | 0 | 68 | **101** |
-| Warned the minute the equipment failed | 0 | 0 | **94** |
+| Of 141 equipment failures that overheated a rack | Fixed alarm | Trend-line forecast | Handicapped twin | Self-calibrating twin |
+| --- | --- | --- | --- | --- |
+| Warned before overheating | 0 | 141 | 141 | 141 |
+| Median warning time | 0 min | 9 min | **12 min** | **11 min** |
+| Warned 10+ minutes ahead | 0 | 68 | **101** | **89** |
+| Warned the minute the equipment failed | 0 | 0 | **94** | 36 |
 
 - The twin warned earlier than the trend line in **133 of 141** cases
 - Hacked or silent sensors: the alarm and trend line caught **0**; the tamper check flagged **all 15** that overheated a rack
-- **No false alarms** in 100 calm runs
+- **No false alarms** in 100 calm runs, for every method
 
-Reproduce: `python sim/evaluate_twin.py` (writes `sim/twin_results.json`).
+### What if our physics is wrong?
+
+The biggest risk of any digital twin is that the real building doesn't behave like the model. So we changed the simulated building's physics while both twins kept assuming the original values, and reran 120 incidents per scenario (`sim/robustness.py`).
+
+| Real building vs the twin's model | Fixed alarm | Trend line | Handicapped twin | Self-calibrating twin |
+| --- | --- | --- | --- | --- |
+| Matches the model | 0 min | 15.5 min | **20 min** | **19 min** |
+| Racks heat 30% faster | 0 min | 14.5 min | **18.5 min** | **17.5 min** |
+| Cooling responds 30% slower | 0 min | 16 min | **21 min** | **20 min** |
+| Chiller failures 30% worse | 0 min | 11.5 min | **15.5 min** | **14.5 min** |
+| All three at once | 0 min | 11.5 min | **15.5 min** | **14.5 min** |
+
+Median minutes of warning before a rack overheats. Every method that warned at all warned in 100% of incidents. Model error costs the twin a few minutes, but it stays ahead of the trend line in every scenario.
+
+Reproduce: `python sim/evaluate_twin.py` and `python sim/robustness.py` (results in `sim/twin_results.json` and `sim/robustness_results.json`).
 
 We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse than a simple trend line, because it only sees temperatures after they start rising. That result is why FaultZero models the cause instead of forecasting the symptom.
 
-**Honest limitation:** all data is simulated, and the twin uses the same physics as the simulated facility. In a real building, the twin would first need to be calibrated against the building's sensor data. That's our next step.
+**Honest limitation:** all data is simulated. The robustness test and self-calibration show the approach tolerates model error, but a real deployment would still need the twin fitted to the building's own sensor history.
 
 ## The hard parts we solved
 
@@ -101,6 +117,9 @@ We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse 
 - **Never a dead demo.** If the NVIDIA API is unreachable, a scripted planner runs the same tools and the same verification.
 - **Seeing what sensors hide.** A spoofed sensor reads "fine" while its rack overheats. We flag it from the power draw jump against a flat temperature reading.
 - **One live stream for everything.** Server-Sent Events push each simulated minute, the cascade and every agent step to the 3D view, timeline and plan cards at once.
+- **A twin that calibrates itself.** It inverts its own physics: two chilled-water readings are enough to estimate a chiller's remaining capacity within a few percent, so the forecast runs on evidence, not on the simulator's hidden truth.
+- **History in a time-series database.** Every simulated minute of all 41 assets goes to a Tiger Data hypertable through a non-blocking background writer; the console charts any rack with `time_bucket()` queries. If the database is down, the demo doesn't notice.
+- **Tested.** 27 automated tests cover the twin, the cascade, calibration, the agent, the business rules and the live API. They caught a real sign error in our calibration formula before it shipped.
 - **Honest evaluation.** We tested against two baselines on 200 incidents, handicapped our own twin, and reported where our ML model lost.
 
 ## Responsible design
@@ -115,11 +134,12 @@ We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse 
 
 | Folder | What's in it |
 | --- | --- |
-| `backend/` | Facility simulator, digital twin and cascade engine, Nemotron agent, FastAPI server |
+| `backend/` | Facility simulator, digital twin and cascade engine, self-calibration, Nemotron agent, Tiger Data history, FastAPI server |
 | `business/` | Dollars at risk, work-order dispatch, shift handoff |
 | `frontend/` | 3D control room (three.js) and story page |
 | `phone/` | Judge "break my data center" page |
-| `sim/` | Evaluation, trend-line baseline, ML experiment |
+| `sim/` | Evaluation, robustness test, trend-line baseline, ML experiment |
+| `tests/` | 27 automated tests (`python -m pytest tests -q`) |
 | `data/` | Facility layout and decision logs |
 | `docs/` | Data formats, API and architecture diagram |
 
@@ -137,7 +157,12 @@ Open http://localhost:8000. Optional `.env` settings:
 ```
 NVIDIA_API_KEY=your-key         # use Nemotron; without it the scripted planner runs
 PUBLIC_URL=https://your.domain  # QR code points to your public address
+TIGER_URL=postgres://...        # store facility history in Tiger Data (optional)
 ```
+
+Run the tests with `python -m pytest tests -q`.
+
+**Deployment:** the live app runs on Render (free web service, auto-deploys on every push) at [faultzero.us](https://faultzero.us), a domain registered through the MLH GoDaddy Registry offer. History is stored in a free Tiger Cloud service.
 
 ## Team
 
@@ -147,7 +172,7 @@ PUBLIC_URL=https://your.domain  # QR code points to your public address
 
 ## What's next
 
-- Calibrate the twin against real building telemetry (BACnet / Modbus)
+- Fit the twin to real building telemetry (BACnet / Modbus), using the Tiger Data history as training data
 - Real weather and IT load forecasts feeding the twin
 - Send work orders straight to maintenance systems
 - Multiple data halls and sites
@@ -157,7 +182,9 @@ PUBLIC_URL=https://your.domain  # QR code points to your public address
 - [FastAPI](https://fastapi.tiangolo.com/) · [Uvicorn](https://www.uvicorn.org/)
 - [three.js](https://threejs.org/)
 - [NVIDIA API catalog (Nemotron)](https://build.nvidia.com/) · [OpenAI Python client](https://github.com/openai/openai-python)
-- [NumPy](https://numpy.org/) · [scikit-learn](https://scikit-learn.org/)
+- [NumPy](https://numpy.org/) · [scikit-learn](https://scikit-learn.org/) · [pytest](https://pytest.org/)
+- [Tiger Data / TimescaleDB](https://www.tigerdata.com/) · [psycopg](https://www.psycopg.org/)
+- [Render](https://render.com/) hosting
 - [python-qrcode](https://github.com/lincolnloop/python-qrcode)
 
 ## Sources

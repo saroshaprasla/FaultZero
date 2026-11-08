@@ -666,3 +666,13 @@ html, body { background: radial-gradient(1200px 700px at 35% 30%, #0b1630 0%, #0
 .wo-status.ok { color: var(--ok); } .wo-status.warn { color: var(--warm); }
 .wo-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; padding: 2px 0; color: var(--muted); }
 .wo-row b { color: #e6eefc; font-weight: 600; text-align: right; }
+
+/* long-term history from Tiger Data */
+.tiger { margin-top: 12px; padding-top: 10px; border-top: 1px solid rgba(34,233,255,.15); display: grid; gap: 6px; }
+.tiger .tg-h { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--future); font-weight: 600; }
+.tiger .tg-h em { font-style: normal; text-transform: none; letter-spacing: 0; color: var(--muted); font-weight: 400; }
+.tiger .tg-chart { width: 100%; height: 70px; }
+.tiger .tg-sub { font-size: 11.5px; color: var(--muted); }
+
+.calib { margin: 4px 0 8px; font-size: 12px; color: var(--muted); }
+.calib b { color: var(--future); font-weight: 600; }
