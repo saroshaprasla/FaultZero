@@ -71,3 +71,13 @@ Everyone builds against these formats. If you need to change one, post in the gr
 - `data/`: shared data files
 
 Stay in your own folder to avoid merge conflicts. Always `git pull` before you start and before you push.
+
+## 6. Cascade engine (Sarosha)
+
+When anything has failed, the backend copies the facility and runs it 60 minutes ahead (`backend/cascade.py`).
+
+- Every snapshot from `/api/stream` now also has `cascade` (the predicted chain) and `roots` (what broke).
+- `GET /api/cascade` → `{"roots": ["CH-2"], "chain": [{"id": "CRAH-4", "level": "high", "minutes": 8, "text": "Cooling unit 4 air out passes 24°C", "because": "because Chiller 2 tripped", "path": ["CH-2", "CRAH-4"]}]}`
+- `GET /api/future` → `{"from_minute": 12, "frames": [{"in": 1, "assets": {...}}, ...]}` one frame per future minute (for the time scrubber).
+
+Binitha: the projection works with any simulator that has `copy()`, `step()`, `assets`, `s`, `fed_by` and `events`, like `fake_sim.py`.

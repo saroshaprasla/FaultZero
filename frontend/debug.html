@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FaultZero debug</title>
+<style>
+  body { margin: 0; font-family: system-ui, sans-serif; background: #0b0f17; color: #dfe6f0; }
+  header { padding: 16px 24px; display: flex; gap: 24px; align-items: baseline; border-bottom: 1px solid #1d2636; }
+  h1 { font-size: 18px; margin: 0; }
+  .muted { color: #7d8aa0; font-size: 14px; }
+  .bar { padding: 12px 24px; display: flex; gap: 8px; flex-wrap: wrap; }
+  button { background: #1a2333; color: #dfe6f0; border: 1px solid #2c3a52; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+  button:hover { border-color: #4b6a9b; }
+  .grid { padding: 12px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+  .tile { border-radius: 8px; padding: 10px; background: #121a27; border: 1px solid #1d2636; font-size: 13px; }
+  .tile b { display: block; margin-bottom: 4px; }
+  .ok { border-left: 4px solid #2e9e6a; }
+  .warning, .degrading, .on_battery { border-left: 4px solid #e0a526; }
+  .critical, .tripped, .depleted, .offline, .down, .no_power { border-left: 4px solid #e5484d; }
+  .standby { border-left: 4px solid #4b6a9b; }
+</style>
+</head>
+<body>
+<header>
+  <h1>FaultZero · live data check</h1>
+  <span class="muted" id="clock">connecting…</span>
+</header>
+<div class="bar" id="buttons"></div>
+<div class="grid" id="grid"></div>
+<script>
+  const fmt = v => (typeof v === "number" ? v.toFixed(1) : v);
+  const skip = new Set(["status"]);
+
+  async function post(url, body) {
+    await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
+  }
+
+  async function setupButtons() {
+    const opts = await (await fetch("/api/options")).json();
+    const bar = document.getElementById("buttons");
+    const add = (label, fn) => { const b = document.createElement("button"); b.textContent = label; b.onclick = fn; bar.appendChild(b); };
+    opts.failures.forEach(k => add("Break: " + k, () => post("/api/inject", { kind: k })));
+    opts.actions.forEach(a => add("Fix: " + a, () => post("/api/action", { action: a })));
+    add("Reset", () => post("/api/reset"));
+  }
+
+  function render(snap) {
+    document.getElementById("clock").textContent =
+      `sim minute ${snap.minute} · ${snap.t.replace("T", " ")} · outdoor ${snap.outdoor_temp_c}°C`;
+    const grid = document.getElementById("grid");
+    grid.innerHTML = "";
+    for (const [id, a] of Object.entries(snap.assets)) {
+      const div = document.createElement("div");
+      div.className = "tile " + a.status;
+      const lines = Object.entries(a).filter(([k]) => !skip.has(k)).map(([k, v]) => `${k}: ${fmt(v)}`).join("<br>");
+      div.innerHTML = `<b>${id} · ${a.status}</b>${lines}`;
+      grid.appendChild(div);
+    }
+  }
+
+  setupButtons();
+  const es = new EventSource("/api/stream");
+  es.onmessage = e => render(JSON.parse(e.data));
+  es.onerror = () => (document.getElementById("clock").textContent = "disconnected, retrying…");
+</script>
+</body>
+</html>

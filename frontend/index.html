@@ -3,66 +3,87 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>FaultZero · live check</title>
-<style>
-  body { margin: 0; font-family: system-ui, sans-serif; background: #0b0f17; color: #dfe6f0; }
-  header { padding: 16px 24px; display: flex; gap: 24px; align-items: baseline; border-bottom: 1px solid #1d2636; }
-  h1 { font-size: 18px; margin: 0; }
-  .muted { color: #7d8aa0; font-size: 14px; }
-  .bar { padding: 12px 24px; display: flex; gap: 8px; flex-wrap: wrap; }
-  button { background: #1a2333; color: #dfe6f0; border: 1px solid #2c3a52; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
-  button:hover { border-color: #4b6a9b; }
-  .grid { padding: 12px 24px; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
-  .tile { border-radius: 8px; padding: 10px; background: #121a27; border: 1px solid #1d2636; font-size: 13px; }
-  .tile b { display: block; margin-bottom: 4px; }
-  .ok { border-left: 4px solid #2e9e6a; }
-  .warning, .degrading, .on_battery { border-left: 4px solid #e0a526; }
-  .critical, .tripped, .depleted, .offline, .down, .no_power { border-left: 4px solid #e5484d; }
-  .standby { border-left: 4px solid #4b6a9b; }
-</style>
+<title>FaultZero</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
-<header>
-  <h1>FaultZero · live data check</h1>
-  <span class="muted" id="clock">connecting…</span>
-</header>
-<div class="bar" id="buttons"></div>
-<div class="grid" id="grid"></div>
-<script>
-  const fmt = v => (typeof v === "number" ? v.toFixed(1) : v);
-  const skip = new Set(["status"]);
+<div class="screen-flash" id="screen-flash" aria-hidden="true"></div>
+<div class="app">
+  <header class="top">
+    <a class="brand" href="/" title="Back to the story">
+      <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+        <path d="M13 2 24 8.5v9L13 24 2 17.5v-9Z" fill="none" stroke="#7fe3f0" stroke-width="2"/>
+        <path d="M8 13h10" stroke="#f0643a" stroke-width="2.4" stroke-linecap="round"/>
+      </svg>
+      <span class="brand-name">FaultZero</span>
+    </a>
+    <span class="facility">Data Hall 1, simulated</span>
+    <span class="status" id="status">All systems normal</span>
 
-  async function post(url, body) {
-    await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body || {}) });
-  }
+    <div class="readouts">
+      <div class="readout"><span class="num" id="clock">--:--</span><span class="lbl">facility time</span></div>
+      <div class="readout"><span class="num" id="outdoor">--</span><span class="lbl">outside, Dallas</span></div>
+      <div class="readout risk zero" id="risk-wrap"><span class="num" id="risk">0</span><span class="lbl">racks at risk</span></div>
+    </div>
 
-  async function setupButtons() {
-    const opts = await (await fetch("/api/options")).json();
-    const bar = document.getElementById("buttons");
-    const add = (label, fn) => { const b = document.createElement("button"); b.textContent = label; b.onclick = fn; bar.appendChild(b); };
-    opts.failures.forEach(k => add("Break: " + k, () => post("/api/inject", { kind: k })));
-    opts.actions.forEach(a => add("Fix: " + a, () => post("/api/action", { action: a })));
-    add("Reset", () => post("/api/reset"));
-  }
+    <div class="menu-wrap">
+      <button class="btn" id="menu-btn" aria-haspopup="true" aria-expanded="false">Test the facility</button>
+      <div class="menu" id="menu" hidden>
+        <h3>Break something</h3>
+        <div id="menu-break"></div>
+        <hr>
+        <h3>Fix something</h3>
+        <div id="menu-fix"></div>
+        <hr>
+        <button id="calm-btn">Turn off animations</button>
+        <button id="reset-btn">Reset the facility</button>
+      </div>
+    </div>
+  </header>
 
-  function render(snap) {
-    document.getElementById("clock").textContent =
-      `sim minute ${snap.minute} · ${snap.t.replace("T", " ")} · outdoor ${snap.outdoor_temp_c}°C`;
-    const grid = document.getElementById("grid");
-    grid.innerHTML = "";
-    for (const [id, a] of Object.entries(snap.assets)) {
-      const div = document.createElement("div");
-      div.className = "tile " + a.status;
-      const lines = Object.entries(a).filter(([k]) => !skip.has(k)).map(([k, v]) => `${k}: ${fmt(v)}`).join("<br>");
-      div.innerHTML = `<b>${id} · ${a.status}</b>${lines}`;
-      grid.appendChild(div);
-    }
-  }
+  <main class="map" id="map" aria-label="Data hall floor map">
+    <div id="three" class="three"></div>
+    <svg id="svg" role="img" aria-label="Isometric map of the data hall"></svg>
+    <div class="view-tools" id="view-tools">
+      <span id="view-hint">Drag to turn, scroll to zoom</span>
+      <button class="btn" id="view-reset">Reset view</button>
+      <div class="switch" id="view-switch" role="group" aria-label="Map view">
+        <button id="view-3d" aria-pressed="true">3D</button>
+        <button id="view-2d" aria-pressed="false">2D</button>
+      </div>
+    </div>
+    <div class="tip" id="tip" hidden></div>
+    <div class="legend" aria-hidden="true">
+      <span>Rack inlet 20°C</span><span class="ramp"></span><span>32°C</span>
+      <span><i class="key-line" style="color: var(--power)"></i>Power</span>
+      <span><i class="key-line" style="color: var(--water)"></i>Chilled water</span>
+    </div>
+  </main>
 
-  setupButtons();
-  const es = new EventSource("/api/stream");
-  es.onmessage = e => render(JSON.parse(e.data));
-  es.onerror = () => (document.getElementById("clock").textContent = "disconnected, retrying…");
+  <aside class="side" id="side">
+    <div id="slot-incident" aria-live="polite"></div>
+    <div id="slot-agent" aria-live="polite"></div>
+    <div id="slot-asset"></div>
+  </aside>
+
+  <section class="time" aria-label="Predicted cascade">
+    <div class="time-head">
+      <h2>What fails next</h2>
+      <span id="time-sub">Predicted from live readings over the next 60 minutes</span>
+    </div>
+    <div class="track" id="track"></div>
+    <div class="chain" id="chain"></div>
+  </section>
+</div>
+<script type="importmap">
+{ "imports": {
+    "three": "/static/vendor/three.module.js",
+    "three/addons/": "/static/vendor/addons/"
+} }
 </script>
+<script type="module" src="/static/app.js"></script>
 </body>
 </html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FaultZero · See the chain before it breaks</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&family=Barlow+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/styles.css">
+<link rel="stylesheet" href="/static/story.css">
+</head>
+<body class="story">
+<div class="stage" id="stage" aria-hidden="true"></div>
+<div class="veil" aria-hidden="true"></div>
+<div class="flash" id="flash" aria-hidden="true"></div>
+
+<header class="story-top">
+  <a class="brand" href="/">
+    <svg class="brand-mark" viewBox="0 0 26 26" aria-hidden="true">
+      <path d="M13 2 24 8.5v9L13 24 2 17.5v-9Z" fill="none" stroke="#7fe3f0" stroke-width="2"/>
+      <path d="M8 13h10" stroke="#f0643a" stroke-width="2.4" stroke-linecap="round"/>
+    </svg>
+    <span class="brand-name">FaultZero</span>
+  </a>
+  <a class="btn" href="/control">Skip to the control room</a>
+</header>
+
+<aside class="hud" id="hud" aria-live="polite">
+  <div class="hud-cell"><span class="num" id="h-clock">21:00</span><span class="lbl">facility time</span></div>
+  <div class="hud-cell"><span class="num" id="h-hot">0</span><span class="lbl">racks over 27°C</span></div>
+  <div class="hud-cell"><span class="num small" id="h-alarm">Quiet</span><span class="lbl">facility alarms</span></div>
+  <div class="hud-cell fz"><span class="num small" id="h-fz">Watching</span><span class="lbl">FaultZero</span></div>
+</aside>
+
+<nav class="rail" aria-label="Story progress">
+  <a href="#b0" data-i="0"><span>The building</span></a>
+  <a href="#b1" data-i="1"><span>The trip</span></a>
+  <a href="#b2" data-i="2"><span>The chain</span></a>
+  <a href="#b3" data-i="3"><span>The fix</span></a>
+  <a href="#b4" data-i="4"><span>Try it</span></a>
+</nav>
+
+<main>
+  <section class="beat" id="b0">
+    <div class="copy">
+      <h1>Every app you used today runs in a building that can never stop.</h1>
+      <p>Thousands of servers, cooled and powered every second of every night. This data hall is simulated and runs on real Dallas weather.</p>
+      <p class="hint">Scroll to see one night go wrong</p>
+    </div>
+  </section>
+
+  <section class="beat" id="b1">
+    <div class="copy">
+      <h2>9:10 PM. Chiller 2 trips.</h2>
+      <p>One machine stops cooling. On the alarm panel, everything still looks fine.</p>
+    </div>
+  </section>
+
+  <section class="beat tall" id="b2">
+    <div class="copy">
+      <h2>Then the chain starts.</h2>
+      <p id="chain-copy">Cooling units 4 to 6 warm up first. Then rows C and D cross 27°C, and only then do the facility's alarms fire.</p>
+      <p class="aside">Most outages aren't one failure. They're a chain.</p>
+    </div>
+  </section>
+
+  <section class="beat" id="b3">
+    <div class="copy">
+      <h2>FaultZero saw the whole chain at minute zero.</h2>
+      <p id="fix-copy">It played the next hour forward in its digital twin, tested the fixes, and recommended one: start the backup chiller. A person approved it, and the chain never happened.</p>
+    </div>
+  </section>
+
+  <section class="beat end" id="b4">
+    <div class="copy wide">
+      <h2 class="big">See the chain before it breaks.</h2>
+      <ol class="pillars">
+        <li><b>Predict the chain</b><span>A digital twin runs the next 60 minutes and shows what fails, when, and why.</span></li>
+        <li><b>Test the fix first</b><span>An AI agent tries each plan in the twin. You approve the one that works.</span></li>
+        <li><b>Hand off the shift</b><span>Every decision is logged, so the next operator gets the whole story.</span></li>
+      </ol>
+      <div class="cta-row">
+        <a class="btn cta" href="/control">Enter the control room</a>
+        <span class="cta-note">Then use “Test the facility” to break it yourself.</span>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script type="importmap">
+{ "imports": {
+    "three": "/static/vendor/three.module.js",
+    "three/addons/": "/static/vendor/addons/"
+} }
+</script>
+<script type="module" src="/static/story.js"></script>
+</body>
+</html>

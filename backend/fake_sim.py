@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 DATA = Path(__file__).resolve().parent.parent / "data"
 
 FAILURE_KINDS = ["chiller_trip", "fan_degradation", "grid_loss", "sensor_silent", "sensor_spoof"]
-ACTIONS = ["start_backup_chiller", "raise_fan_speed", "start_generator", "shift_load"]
+ACTIONS = ["start_backup_chiller", "raise_fan_speed", "start_generator", "shift_load", "isolate_rack"]
 
 
 def load_assets(path: Path = DATA / "assets.json") -> List[dict]:
@@ -60,6 +60,8 @@ class FakeFacility:
                 self.s[i] = {"status": "ok", "power_kw": round(self.rng.uniform(6, 12), 1), "inlet_temp_c": 22.5,
                              "sensor": "ok"}
         self.reported: Dict[str, Optional[float]] = {}
+        self.base_power = {i: v["power_kw"] for i, v in self.s.items() if self.assets[i]["type"] == "rack"}
+        self.hidden_heat: Dict[str, float] = {}  # extra heat an attacker hides behind a spoofed sensor
 
     # ---------- failures and actions ----------
     def inject(self, kind: str, asset: Optional[str] = None) -> dict:
@@ -79,8 +81,12 @@ class FakeFacility:
         elif kind == "sensor_silent":
             self.s[asset]["sensor"] = "silent"
         elif kind == "sensor_spoof":
+            # zero-day style attack: the sensor is frozen at an "all good" value while the
+            # attacker overloads the rack, so the real temperature climbs where nobody sees it
             self.s[asset]["sensor"] = "spoofed"
-            self.reported[asset] = self.s[asset]["inlet_temp_c"]  # frozen "all good" value
+            self.reported[asset] = self.s[asset]["inlet_temp_c"]
+            self.s[asset]["power_kw"] = round(self.s[asset]["power_kw"] * 2.3, 1)
+            self.hidden_heat[asset] = 6.0
         ev = {"minute": self.minute, "type": "failure", "kind": kind, "asset": asset}
         self.events.append(ev)
         return ev
@@ -98,11 +104,19 @@ class FakeFacility:
                     self.s[i]["fan_pct"] = 95.0
         elif action == "start_generator":
             self.s["GEN-1"]["status"] = "ok"
+        elif action == "isolate_rack":
+            rack = asset or next((i for i, v in self.s.items() if v.get("sensor") in ("spoofed", "silent")), None)
+            if rack and rack in self.s:
+                self.s[rack]["power_kw"] = 0.5          # workloads migrated, rack locked for inspection
+                self.hidden_heat.pop(rack, None)
+                self.base_power[rack] = 0.5
+                asset = rack
         elif action == "shift_load":
             row = asset or "C"
             for i, a in self.assets.items():
                 if a["type"] == "rack" and i.startswith(f"RACK-{row}"):
                     self.s[i]["power_kw"] = round(self.s[i]["power_kw"] * 0.6, 1)
+                    self.base_power[i] = self.s[i]["power_kw"]
         else:
             raise ValueError(f"unknown action: {action}")
         ev = {"minute": self.minute, "type": "action", "action": action, "asset": asset}
@@ -131,6 +145,8 @@ class FakeFacility:
             c = s[i]
             if c["status"] == "ok" and not grid_ok and not gen_ok:
                 c["status"] = "no_power"
+            elif c["status"] == "no_power" and (grid_ok or gen_ok):
+                c["status"] = "ok"
             if c["status"] == "ok":
                 c["supply_temp_c"] += (7.0 - c["supply_temp_c"]) * 0.3
                 c["load_pct"] = round(min(100, 65 + (self.outdoor_temp_c() - 30) * 3 + rng.uniform(-2, 2)), 1)
@@ -149,7 +165,7 @@ class FakeFacility:
             chillers = [c for c in self.fed_by[i] if self.assets[c]["type"] == "chiller"]
             water = min(s[c]["supply_temp_c"] for c in chillers) if chillers else 22.0
             power = 1.0 if (grid_ok or gen_ok) else 0.0
-            target = water + 11 + (70 - u["fan_pct"]) * 0.08 + (1 - power) * 8
+            target = water + 11 + (70 - u["fan_pct"]) * 0.16 + (1 - power) * 8
             u["supply_air_c"] = round(u["supply_air_c"] + (target - u["supply_air_c"]) * 0.25, 2)
 
         # power
@@ -177,9 +193,11 @@ class FakeFacility:
             ups = self.fed_by[pdu][0]
             if s[ups]["status"] == "depleted":
                 r["status"], r["power_kw"] = "offline", 0.0
+            elif r["status"] == "offline":
+                r["status"], r["power_kw"] = "ok", self.base_power[i]
             crahs = [c for c in self.fed_by[i] if self.assets[c]["type"] == "crah"]
             air = sum(s[c]["supply_air_c"] for c in crahs) / len(crahs)
-            target = air + 4.5 + r["power_kw"] * 0.05
+            target = air + 4.5 + r["power_kw"] * 0.05 + self.hidden_heat.get(i, 0.0)
             r["inlet_temp_c"] = round(r["inlet_temp_c"] + (target - r["inlet_temp_c"]) * 0.15 + rng.uniform(-0.05, 0.05), 2)
             if r["status"] != "offline":
                 lim = a["limit"]
