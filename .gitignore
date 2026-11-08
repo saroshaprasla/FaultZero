@@ -223,3 +223,6 @@ data/handoff_acks.jsonl
 
 # Generated dispatch decisions
 /data/decisions.jsonl
+
+# Generated work orders
+/data/workorders.jsonl

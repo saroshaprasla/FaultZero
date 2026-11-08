@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import uuid4
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-DECISIONS_FILE = DATA_DIR / "decisions.jsonl"
+DECISIONS_FILE = DATA_DIR / "workorders.jsonl"
 
 TECHNICIANS = [
     {"id": "TECH-01", "name": "Alex", "skill": "mechanical", "on_shift": True},
@@ -34,69 +34,110 @@ def get_asset_history(asset):
     return [order for order in WORK_ORDERS if order["asset"] == asset]
 
 
-def create_work_order(plan, asset):
-    """Create a simulated work order for an approved mitigation plan."""
-    if not isinstance(plan, dict):
-        raise ValueError("plan must be a dictionary")
-    if not isinstance(asset, str) or not asset.strip():
-        raise ValueError("asset must be a non-empty string")
 
-    action = str(plan.get("action", "inspect")).lower()
+def create_work_order(plan: dict, agent_state: dict) -> dict:
+    """Create a simulated work order for an approved recovery plan."""
+    try:
+        if not isinstance(plan, dict):
+            raise ValueError("plan must be a dictionary")
 
-    if "fan" in action or "cool" in action or "chiller" in action:
-        skill, part = "mechanical", "fan_motor"
-        if "chiller" in action:
-            part = "compressor_part"
-    elif "ups" in action or "power" in action or "generator" in action:
-        skill, part = "electrical", "ups_battery"
-    else:
-        skill, part = "controls", None
+        if not isinstance(agent_state, dict):
+            raise ValueError("agent_state must be a dictionary")
 
-    technician = next(
-        (t for t in TECHNICIANS if t["on_shift"] and t["skill"] == skill),
-        None,
-    )
+        actions = plan.get("actions", [])
+        if not isinstance(actions, list):
+            actions = []
 
-    available = part is None or SPARE_PARTS[part]["quantity"] > 0
+        first_action = actions[0] if actions and isinstance(actions[0], dict) else {}
 
-    status = (
-        "assigned" if technician and available else "pending_resources"
-    )
+        action = str(
+            first_action.get("action")
+            or plan.get("action")
+            or plan.get("name")
+            or "inspect"
+        ).lower()
 
-    if status == "assigned" and part is not None:
-        SPARE_PARTS[part]["quantity"] -= 1
+        asset = str(
+            first_action.get("asset")
+            or plan.get("asset")
+            or "unknown"
+        )
 
-    order = {
-        "id": f"WO-{uuid4().hex[:8].upper()}",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-        "asset": asset,
-        "action": action,
-        "priority": plan.get("priority", "high"),
-        "technician": technician["id"] if technician else None,
-        "required_skill": skill,
-        "reserved_part": part if status == "assigned" else None,
-        "spare_location": (
-            SPARE_PARTS[part]["location"]
-            if part and status == "assigned"
-            else None
-        ),
-        "eta_minutes": 30 if status == "assigned" else None,
-        "status": status,
-        "simulated": True,
-    }
+        if any(word in action for word in ("fan", "cool", "chiller")):
+            skill = "mechanical"
+            part = "compressor_part" if "chiller" in action else "fan_motor"
+        elif any(word in action for word in ("ups", "power", "generator")):
+            skill, part = "electrical", "ups_battery"
+        else:
+            skill, part = "controls", None
 
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
+        technician = next(
+            (t for t in TECHNICIANS if t["on_shift"] and t["skill"] == skill),
+            None,
+        )
 
-    with DECISIONS_FILE.open("a", encoding="utf-8") as file:
-        file.write(json.dumps(order) + "\n")
+        available = part is None or SPARE_PARTS[part]["quantity"] > 0
+        status = "assigned" if technician and available else "pending_resources"
 
-    WORK_ORDERS.append(order)
-    return order
+        if status == "assigned" and part is not None:
+            SPARE_PARTS[part]["quantity"] -= 1
+
+        created = datetime.now(timezone.utc).isoformat()
+
+        order = {
+            "id": f"WO-{uuid4().hex[:8].upper()}",
+            "priority": plan.get("priority", "high"),
+            "team": skill,
+            "title": str(plan.get("name") or action),
+            "steps": actions or [{"action": action, "asset": asset}],
+            "created": created,
+            "created_at": created,
+            "asset": asset,
+            "action": action,
+            "technician": technician["id"] if technician else None,
+            "required_skill": skill,
+            "reserved_part": part if status == "assigned" else None,
+            "spare_location": (
+                SPARE_PARTS[part]["location"]
+                if part and status == "assigned"
+                else None
+            ),
+            "eta_minutes": 30 if status == "assigned" else None,
+            "status": status,
+            "simulated": True,
+        }
+
+        DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+        with DECISIONS_FILE.open("a", encoding="utf-8") as file:
+            file.write(json.dumps(order) + "\n")
+
+        WORK_ORDERS.append(order)
+        return order
+
+    except Exception as exc:
+        return {
+            "id": None,
+            "priority": "unknown",
+            "team": "unassigned",
+            "title": "Dispatch unavailable",
+            "steps": [],
+            "created": datetime.now(timezone.utc).isoformat(),
+            "status": "error",
+            "error": str(exc),
+            "simulated": True,
+        }
 
 
 if __name__ == "__main__":
     example = create_work_order(
-        {"action": "repair chiller", "priority": "critical"},
-        "CH-2",
+        {
+            "name": "Repair Chiller 2",
+            "actions": [
+                {"action": "repair chiller", "asset": "CH-2"}
+            ],
+            "priority": "critical",
+        },
+        {"status": "completed", "plans": []},
     )
     print(json.dumps(example, indent=2))
