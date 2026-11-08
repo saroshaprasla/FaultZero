@@ -10,7 +10,7 @@ Team: Sarosha, Binitha, Naomi
 
 **Live app: [faultzero.us](https://faultzero.us)** · break it from your phone at [faultzero.us/break](https://faultzero.us/break)
 
-Demo video: coming soon · Devpost: coming soon
+**Demo video:** <!-- VIDEO -->coming soon · **Devpost:** [FaultZero on Devpost](https://devpost.com/software/codered-teirf1) · **Code:** this repo
 
 | ⏱ 12 min | 🚨 141 / 141 | 🧪 30% wrong physics | 🛡 15 / 15 | ⚡ ~9 ms | ✅ 29 tests |
 | :---: | :---: | :---: | :---: | :---: | :---: |
@@ -37,6 +37,9 @@ Most of these outages aren't one failure. They're a chain: a chiller trips, cool
 9. Judges can **break it from their phone** with a QR code
 
 ## How it works
+
+![FaultZero architecture](docs/architecture.png)
+
 
 ```
 sensor readings -> self-calibration -> digital twin (next 60 min) -> cascade + root cause -> control room
@@ -72,7 +75,7 @@ Failures have an adjustable **severity** (30% to 100%). Operators can start the 
 | --- | --- | --- |
 | Digital twin | Copies the facility and steps it 60 minutes ahead | Reads the cause (broken equipment), not just rising temperatures |
 | Cascade engine | Records the first limit crossing per asset and walks the dependency graph for the root cause | Every prediction says *because X failed* |
-| NVIDIA Nemotron agent | Uses 6 tools: incident, forecast, asset, mitigations, simulate plan, submit plans | Never reports its own numbers; every plan is re-simulated and ranked by the twin |
+| NVIDIA Nemotron agent | Uses 6 tools: incident, forecast, asset, mitigations, simulate plan, submit plans | Never reports its own numbers; every plan is re-simulated and ranked by the twin. Benchmarked below |
 | Probabilistic forecast | Runs 24 possible futures with different failure severities and noise, reports a probability and a likely range | Tested for honesty: every 90%+ call came true, every ≤10% call did not |
 | Self-calibration | Infers how bad a failure is (e.g. a chiller at 38% capacity) from the last two sensor readings | The twin is never told the answer; the live forecast runs on what sensors reveal |
 | Scripted planner | Runs the same tools if the NVIDIA API is unreachable | The demo never breaks |
@@ -106,6 +109,20 @@ The console doesn't just say *"a rack overheats in 9 min"*. It runs 24 possible 
 
 The probability stays reliable even when our physics is wrong. The timing range does not: with 30% worse physics it is off by about 2 minutes and too narrow. That is the clearest sign of what a real deployment needs first: fitting the twin's physics to the building.
 
+### Does the AI agent actually help?
+
+We ran 16 incidents (half of them two failures at once) three ways: do nothing, a hand-written expert playbook, and NVIDIA Nemotron planning on its own with tool calls (`sim/agent_benchmark.py`). Every plan was re-simulated by the twin, so these are verified outcomes.
+
+| | Do nothing | Expert playbook | Nemotron agent |
+| --- | --- | --- | --- |
+| Incidents where every rack was saved | 0 / 16 | 16 / 16 | 15 / 16 |
+| Total exposure across the 16 incidents | $236,170 | $0 | $870 |
+| Median time to a plan | | instant | 6 s |
+| Plans tested in the twin per incident | | 4.8 | 3.4 |
+| Times the model failed and fell back | | | 0 |
+
+Nemotron was never told the strategy, yet it matched the hand-written playbook in 15 of 16 incidents and cut exposure by 99.6%. In one compound incident its plan was slightly worse. That is exactly why FaultZero keeps the playbook as a safety net and verifies every plan in the twin before a human sees it: the agent brings flexibility, the twin brings trust.
+
 ### What if our physics is wrong?
 
 The biggest risk of any digital twin is that the real building doesn't behave like the model. So we changed the simulated building's physics while both twins kept assuming the original values, and reran 120 incidents per scenario (`sim/robustness.py`).
@@ -120,7 +137,7 @@ The biggest risk of any digital twin is that the real building doesn't behave li
 
 Median minutes of warning before a rack overheats. Every method that warned at all warned in 100% of incidents. Model error costs the twin a few minutes, but it stays ahead of the trend line in every scenario.
 
-Reproduce: `python sim/evaluate_twin.py`, `python sim/robustness.py` and `python sim/evaluate_ensemble.py` (results in `sim/twin_results.json` and `sim/robustness_results.json`).
+Reproduce: `python sim/evaluate_twin.py`, `python sim/robustness.py`, `python sim/evaluate_ensemble.py` and `python sim/agent_benchmark.py` (needs an NVIDIA API key). Results are saved as JSON in `sim/`.
 
 We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse than a simple trend line, because it only sees temperatures after they start rising. That result is why FaultZero models the cause instead of forecasting the symptom.
 
