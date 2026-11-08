@@ -1,0 +1,657 @@
+{
+  "incidents": 16,
+  "note": "every plan is re-simulated by the twin; numbers are verified outcomes",
+  "do_nothing": {
+    "mean_racks_at_risk": 17.44,
+    "total_usd_at_risk": 236170
+  },
+  "scripted": {
+    "incidents": 16,
+    "all_racks_saved": 16,
+    "mean_racks_at_risk": 0,
+    "mean_rack_minutes_over_27c": 0,
+    "total_usd_at_risk": 0,
+    "median_seconds": 0.0,
+    "mean_plans_tested": 4.8
+  },
+  "nemotron": {
+    "incidents": 16,
+    "all_racks_saved": 15,
+    "mean_racks_at_risk": 0.06,
+    "mean_rack_minutes_over_27c": 3.2,
+    "total_usd_at_risk": 870,
+    "median_seconds": 6.25,
+    "mean_plans_tested": 3.4
+  },
+  "nemotron_fell_back": 0,
+  "head_to_head_all": {
+    "nemotron_answered_itself": 16,
+    "nemotron_better": 0,
+    "tie": 15,
+    "scripted_better": 1
+  },
+  "head_to_head_compound": {
+    "nemotron_answered_itself": 8,
+    "nemotron_better": 0,
+    "tie": 7,
+    "scripted_better": 1
+  },
+  "rows": [
+    {
+      "seed": 7000,
+      "compound": false,
+      "failures": [
+        {
+          "kind": "grid_loss",
+          "asset": "UTIL",
+          "severity": 1.0
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 24,
+        "usd_at_risk": 22000,
+        "rack_minutes_over_27c": 1320
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 9,
+        "best_plan": "Start generator",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 5.1,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 11,
+        "best_plan": "Plan A: Start generator only",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7001,
+      "compound": true,
+      "failures": [
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-2",
+          "severity": 0.7
+        },
+        {
+          "kind": "sensor_spoof",
+          "asset": "RACK-A5",
+          "severity": 0.89
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 13,
+        "usd_at_risk": 10870,
+        "rack_minutes_over_27c": 652
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 10,
+        "best_plan": "Isolate rack A5 + Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 6.2,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 11,
+        "best_plan": "Plan B: Start backup chiller + raise fan speed",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7002,
+      "compound": false,
+      "failures": [
+        {
+          "kind": "grid_loss",
+          "asset": "UTIL",
+          "severity": 1.0
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 24,
+        "usd_at_risk": 22000,
+        "rack_minutes_over_27c": 1320
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 9,
+        "best_plan": "Start generator",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 10.7,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 10,
+        "best_plan": "Generator only",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7003,
+      "compound": true,
+      "failures": [
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-2",
+          "severity": 0.61
+        },
+        {
+          "kind": "grid_loss",
+          "asset": "UTIL",
+          "severity": 1.0
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 24,
+        "usd_at_risk": 22000,
+        "rack_minutes_over_27c": 1320
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.1,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 10,
+        "best_plan": "Start generator + Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 5.0,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 10,
+        "best_plan": "Plan A: Start generator + backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7004,
+      "compound": false,
+      "failures": [
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-1",
+          "severity": 0.69
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 12,
+        "usd_at_risk": 9980,
+        "rack_minutes_over_27c": 599
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 9,
+        "best_plan": "Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 10.9,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 11,
+        "best_plan": "Start backup chiller only",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7005,
+      "compound": true,
+      "failures": [
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-1",
+          "severity": 0.89
+        },
+        {
+          "kind": "grid_loss",
+          "asset": "UTIL",
+          "severity": 1.0
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 24,
+        "usd_at_risk": 22050,
+        "rack_minutes_over_27c": 1323
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 10,
+        "best_plan": "Start generator + Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 6.3,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 10,
+        "best_plan": "Plan A: Generator + Backup Chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7006,
+      "compound": false,
+      "failures": [
+        {
+          "kind": "grid_loss",
+          "asset": "UTIL",
+          "severity": 1.0
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 24,
+        "usd_at_risk": 22000,
+        "rack_minutes_over_27c": 1320
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 9,
+        "best_plan": "Start generator",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 8.2,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 13,
+        "best_plan": "Plan A: Start generator only",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7007,
+      "compound": true,
+      "failures": [
+        {
+          "kind": "sensor_spoof",
+          "asset": "RACK-C3",
+          "severity": 0.84
+        },
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-1",
+          "severity": 0.9
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 13,
+        "usd_at_risk": 11150,
+        "rack_minutes_over_27c": 669
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 10,
+        "best_plan": "Isolate rack C3 + Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 5.6,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 9,
+        "best_plan": "Plan B: Start backup chiller + raise fan speed",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7008,
+      "compound": false,
+      "failures": [
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-2",
+          "severity": 0.74
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 12,
+        "usd_at_risk": 10000,
+        "rack_minutes_over_27c": 600
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 9,
+        "best_plan": "Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 5.8,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 10,
+        "best_plan": "Plan A: Start backup chiller only",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7009,
+      "compound": true,
+      "failures": [
+        {
+          "kind": "fan_degradation",
+          "asset": "CRAH-3",
+          "severity": 0.64
+        },
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-2",
+          "severity": 0.64
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 18,
+        "usd_at_risk": 11750,
+        "rack_minutes_over_27c": 705
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 10,
+        "best_plan": "Start backup chiller + Raise fan speeds",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 9.8,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 13,
+        "best_plan": "Plan D: Backup chiller + raise fan speed",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7010,
+      "compound": false,
+      "failures": [
+        {
+          "kind": "fan_degradation",
+          "asset": "CRAH-5",
+          "severity": 0.71
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 12,
+        "usd_at_risk": 4520,
+        "rack_minutes_over_27c": 271
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 7,
+        "best_plan": "Raise fan speeds",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 10.2,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 12,
+        "best_plan": "Plan B: Raise fan speed",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7011,
+      "compound": true,
+      "failures": [
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-2",
+          "severity": 0.81
+        },
+        {
+          "kind": "grid_loss",
+          "asset": "UTIL",
+          "severity": 1.0
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 24,
+        "usd_at_risk": 22000,
+        "rack_minutes_over_27c": 1320
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 10,
+        "best_plan": "Start generator + Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 6.7,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 10,
+        "best_plan": "Plan A: Generator + Backup Chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7012,
+      "compound": false,
+      "failures": [
+        {
+          "kind": "fan_degradation",
+          "asset": "CRAH-1",
+          "severity": 0.82
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 6,
+        "usd_at_risk": 2700,
+        "rack_minutes_over_27c": 162
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 7,
+        "best_plan": "Raise fan speeds",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 7.4,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 9,
+        "best_plan": "Plan B: Raise fan speed",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7013,
+      "compound": true,
+      "failures": [
+        {
+          "kind": "grid_loss",
+          "asset": "UTIL",
+          "severity": 1.0
+        },
+        {
+          "kind": "sensor_spoof",
+          "asset": "RACK-B1",
+          "severity": 0.88
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 24,
+        "usd_at_risk": 22030,
+        "rack_minutes_over_27c": 1322
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 10,
+        "best_plan": "Isolate rack B1 + Start generator",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 5.6,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 12,
+        "best_plan": "Plan C: Generator + backup chiller + shift Row B load",
+        "racks_at_risk": 1,
+        "rack_minutes_over_27c": 52,
+        "usd_at_risk": 870
+      }
+    },
+    {
+      "seed": 7014,
+      "compound": false,
+      "failures": [
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-1",
+          "severity": 0.91
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 12,
+        "usd_at_risk": 10250,
+        "rack_minutes_over_27c": 615
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.0,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 9,
+        "best_plan": "Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 5.7,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 10,
+        "best_plan": "Plan A: Start backup chiller only",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    },
+    {
+      "seed": 7015,
+      "compound": true,
+      "failures": [
+        {
+          "kind": "chiller_trip",
+          "asset": "CH-1",
+          "severity": 0.75
+        },
+        {
+          "kind": "sensor_spoof",
+          "asset": "RACK-C3",
+          "severity": 0.85
+        }
+      ],
+      "do_nothing": {
+        "racks_at_risk": 13,
+        "usd_at_risk": 10870,
+        "rack_minutes_over_27c": 652
+      },
+      "scripted": {
+        "source": "scripted",
+        "seconds": 0.1,
+        "plans_tested_in_twin": 5,
+        "tool_calls": 10,
+        "best_plan": "Isolate rack C3 + Start backup chiller",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      },
+      "nemotron": {
+        "source": "nemotron",
+        "seconds": 4.9,
+        "plans_tested_in_twin": 3,
+        "tool_calls": 9,
+        "best_plan": "Plan B: Start backup chiller + raise fan speed",
+        "racks_at_risk": 0,
+        "rack_minutes_over_27c": 0,
+        "usd_at_risk": 0
+      }
+    }
+  ]
+}
