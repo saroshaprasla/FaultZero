@@ -14,10 +14,6 @@ Demo video: coming soon · Devpost: coming soon
 | :---: | :---: | :---: | :---: | :---: |
 | median head start over the facility alarm | overheating incidents warned in advance (alarm: 0) | hidden sensor attacks caught (alarm: 0) | exposure removed by one approved fix | to simulate the next 60 minutes |
 
-![FaultZero control room during a chiller failure](docs/screenshots/incident.jpg)
-
-<sub>Chiller 2 has tripped. FaultZero warned 10 minutes before the alarms, predicts 12 racks will overheat, and Nemotron's verified plan brings that to 0.</sub>
-
 ---
 
 ## Why we built this
@@ -38,36 +34,13 @@ Most of these outages aren't one failure. They're a chain: a chiller trips, cool
 8. **End shift** writes a handoff for the next operator
 9. Judges can **break it from their phone** with a QR code
 
-## See it in 60 seconds
-
-| 1. Break it | 2. See the chain | 3. Approve the fix |
-| :---: | :---: | :---: |
-| <img src="docs/screenshots/phone.png" width="240" alt="Judge phone page"> | <img src="docs/screenshots/chain.jpg" width="320" alt="The failure chain spreading through the data hall"> | <img src="docs/screenshots/approved.png" width="240" alt="Approved plan with work order"> |
-| A judge scans the QR code and trips Chiller 2 from their phone | The twin plays the next hour and shows what fails, when, and why | Nemotron's plan is verified in the twin; one click approves it and dispatches a technician |
-
 ## How it works
-
-```mermaid
-flowchart LR
-    F[Facility simulator<br/>1 step = 1 minute] -->|live readings| T[Digital twin<br/>60 min ahead in ~9 ms]
-    T -->|what fails next + why| C[Control room]
-    T --> A[Nemotron agent<br/>tool calling]
-    A -->|candidate plans| V[Twin re-verifies<br/>every plan]
-    V -->|racks + $ at risk| C
-    C -->|operator approves| F
-    C --> W[Work order]
-    C --> H[Shift handoff]
-    P[Judge phone page] -->|inject failure| F
-```
 
 ```
 facility simulator -> digital twin (next 60 min) -> cascade + root cause -> control room
                                   |
                        Nemotron agent -> plans -> twin re-verifies -> operator approves -> work order
 ```
-
-<!-- Architecture diagram: save the drawing as docs/architecture.png, then delete this line and the arrows around the next line -->
-<!-- ![FaultZero architecture](docs/architecture.png) -->
 
 ## Pages
 
@@ -102,8 +75,6 @@ Failures have an adjustable **severity** (30% to 100%). Operators can start the 
 ## Results
 
 200 random failures (random equipment, severity 30% to 100%). We compared three ways of warning an operator. To keep the twin honest, its random noise was reseeded and it mis-estimated each failure's severity by up to 30%.
-
-![Results: FaultZero warns a median 12 minutes ahead vs 9 for a trend line and 0 for the alarm](docs/screenshots/results.png)
 
 | Of 141 equipment failures that overheated a rack | Fixed alarm | Trend-line forecast | FaultZero twin |
 | --- | --- | --- | --- |
@@ -150,7 +121,7 @@ We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse 
 | `phone/` | Judge "break my data center" page |
 | `sim/` | Evaluation, trend-line baseline, ML experiment |
 | `data/` | Facility layout and decision logs |
-| `docs/` | Data formats, API and screenshots |
+| `docs/` | Data formats, API and architecture diagram |
 
 ## How to run
 
