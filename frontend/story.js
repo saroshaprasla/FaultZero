@@ -2,7 +2,7 @@
 import { Scene3D, webglAvailable } from "./scene3d.js";
 
 const $ = id => document.getElementById(id);
-const RAMP = [[20, "3fa7d6"], [24, "3cc3a0"], [27, "f2b33d"], [30, "f0643a"], [32, "d92d55"]];
+const RAMP = [[20, "1fb6ff"], [24, "19f5b0"], [27, "ffb21e"], [30, "ff6a2b"], [32, "ff2e63"]];
 function mix(a, b, t) {
   const pa = a.match(/\w\w/g).map(h => parseInt(h, 16)), pb = b.match(/\w\w/g).map(h => parseInt(h, 16));
   return "#" + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0")).join("");
@@ -31,7 +31,7 @@ function show(frame) {
   $("h-hot").classList.toggle("hot", hot > 0);
   $("h-alarm").textContent = hot > 0 ? "Firing" : "Quiet";
   $("h-alarm").classList.toggle("firing", hot > 0);
-  document.body.style.setProperty("--danger", (Math.min(hot, 12) / 12 * 0.55).toFixed(2));
+  document.body.style.setProperty("--danger", (Math.min(hot, 12) / 12 * 0.38).toFixed(2));
 }
 
 function pick(list, t) { return list[Math.max(0, Math.min(list.length - 1, Math.floor(t * (list.length - 1))))]; }

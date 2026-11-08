@@ -13,8 +13,8 @@ const DIMS = { // width, height, depth
   rack: [0.8, 1.7, 0.95], chiller: [2.0, 0.95, 1.25], crah: [0.95, 1.7, 0.95], ups: [1.15, 1.15, 1.15],
   pdu: [0.6, 1.05, 0.6], utility: [1.0, 2.6, 1.0], generator: [1.6, 0.95, 1.05],
 };
-const LINE_IDLE = new THREE.Color("#7f9fd0");
-const SELECT = new THREE.Color("#7fe3f0");
+const LINE_IDLE = new THREE.Color("#6f9fe8");
+const SELECT = new THREE.Color("#22e9ff");
 const BAD = new Set(["tripped", "down", "depleted", "no_power", "offline"]);
 const ease = t => 1 - Math.pow(1 - t, 3);
 
@@ -52,7 +52,7 @@ export class Scene3D {
     container.appendChild(this.labels.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x0f1a2c, 0.018);
+    this.scene.fog = new THREE.FogExp2(0x060b16, 0.02);
     this.camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 400);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -72,7 +72,7 @@ export class Scene3D {
 
     this.composer = new EffectComposer(this.renderer);
     this.composer.addPass(new RenderPass(this.scene, this.camera));
-    this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.85, 0.55, 0.12);
+    this.bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 1.15, 0.6, 0.1);
     this.composer.addPass(this.bloom);
     this.composer.addPass(new OutputPass());
 
@@ -125,7 +125,7 @@ export class Scene3D {
   buildFloor() {
     const { x0, x1, z0, z1 } = this.bounds;
     const g = new THREE.Group();
-    const mat = new THREE.LineBasicMaterial({ color: 0x223656, transparent: true, opacity: 0.8 });
+    const mat = new THREE.LineBasicMaterial({ color: 0x173a66, transparent: true, opacity: 0.9 });
     const pts = [];
     for (let x = Math.floor(x0); x <= x1; x += S) pts.push(x, 0, z0, x, 0, z1);
     for (let z = Math.floor(z0); z <= z1; z += S) pts.push(x0, 0, z, x1, 0, z);
@@ -133,7 +133,7 @@ export class Scene3D {
     geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
     g.add(new THREE.LineSegments(geo, mat));
     const slab = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0),
-      new THREE.MeshStandardMaterial({ color: 0x101c30, roughness: 0.95 }));
+      new THREE.MeshStandardMaterial({ color: 0x070f1f, roughness: 0.95 }));
     slab.rotation.x = -Math.PI / 2;
     slab.position.set((x0 + x1) / 2, -0.01, (z0 + z1) / 2);
     g.add(slab);
@@ -151,7 +151,7 @@ export class Scene3D {
     const geo = new THREE.BufferGeometry();
     geo.setAttribute("position", new THREE.BufferAttribute(this.air.pos, 3));
     this.airPoints = new THREE.Points(geo, new THREE.PointsMaterial({
-      color: 0x5f8fc7, size: 0.05, transparent: true, opacity: 0.55, depthWrite: false,
+      color: 0x3fb8ff, size: 0.055, transparent: true, opacity: 0.55, depthWrite: false,
     }));
     this.scene.add(this.airPoints);
   }
@@ -162,7 +162,7 @@ export class Scene3D {
     group.position.copy(this.pos(a));
     const geo = new THREE.BoxGeometry(w, h, d);
     geo.translate(0, h / 2, 0);
-    const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x152640, roughness: 0.6, metalness: 0.35, transparent: true, opacity: 0.92 }));
+    const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x0c1830, roughness: 0.55, metalness: 0.4, transparent: true, opacity: 0.94 }));
     body.userData.id = a.id;
     const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo), new THREE.LineBasicMaterial({ color: LINE_IDLE.clone() }));
     group.add(body, edges);
@@ -242,7 +242,7 @@ export class Scene3D {
         const path = new THREE.CurvePath();
         path.add(new THREE.LineCurve3(p0, p1));
         path.add(new THREE.LineCurve3(p1, p2));
-        const color = new THREE.Color(kind === "water" ? 0x2f6fae : 0x8c6a2a);
+        const color = new THREE.Color(kind === "water" ? 0x1f6fd6 : 0xb07a12);
         const tube = new THREE.Mesh(new THREE.TubeGeometry(path, 40, 0.035, 6, false), new THREE.MeshBasicMaterial({ color }));
         this.scene.add(tube);
         const n = Math.max(2, Math.round(path.getLength() / 2.2));
@@ -254,7 +254,7 @@ export class Scene3D {
     this.flowMesh = new THREE.InstancedMesh(flowGeo, new THREE.MeshBasicMaterial({ color: 0xffffff }), flows.length);
     this.flowMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
     this.flows = flows;
-    flows.forEach((f, i) => this.flowMesh.setColorAt(i, new THREE.Color(f.pipe.kind === "water" ? 0x6cc6ff : 0xffc45a)));
+    flows.forEach((f, i) => this.flowMesh.setColorAt(i, new THREE.Color(f.pipe.kind === "water" ? 0x4fd2ff : 0xffc23a)));
     this.scene.add(this.flowMesh);
   }
 
@@ -284,7 +284,7 @@ export class Scene3D {
     this.sparks.pos.fill(-999);
   }
 
-  burst(id, color = 0xff5a3c, count = 220) {
+  burst(id, color = 0xff4a2b, count = 220) {
     // a shower of sparks out of the top of a machine
     const o = this.objs[id];
     if (!o || this.calm) return;
@@ -306,7 +306,7 @@ export class Scene3D {
     const geo = new THREE.SphereGeometry(0.16, 12, 12);
     this.cometPool = [];
     for (let i = 0; i < 60; i++) {
-      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff3358, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+      const m = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: 0xff2e63, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
       m.visible = false;
       this.scene.add(m);
       this.cometPool.push(m);
@@ -322,7 +322,7 @@ export class Scene3D {
     });
   }
 
-  pulseFrom(id, color = 0xff3358, speed = 7, onHit) {
+  pulseFrom(id, color = 0xff2e63, speed = 7, onHit) {
     // send a pulse down every pipe leaving this asset, then keep going downstream
     if (this.calm) return;
     const visited = new Set();
@@ -404,7 +404,7 @@ export class Scene3D {
       const a = o.a;
       let col;
       if (a.type === "rack") col = s.status === "offline" ? new THREE.Color(0x3a4458) : new THREE.Color(this.heat(s.inlet_temp_c));
-      else if (BAD.has(s.status)) col = new THREE.Color(0xff3358);
+      else if (BAD.has(s.status)) col = new THREE.Color(0xff2e63);
       else if (s.status === "degrading" || s.status === "on_battery") col = new THREE.Color(0xf2b33d);
       else if (s.status === "standby") col = new THREE.Color(0x46597a);
       else if (a.type === "crah") col = new THREE.Color(this.heat(s.supply_air_c + 5));
@@ -423,7 +423,7 @@ export class Scene3D {
     for (const p of this.pipes) {
       const s = snap.assets[p.from].status;
       p.state = BAD.has(s) ? "broken" : s === "standby" ? "dead" : "ok";
-      p.tube.material.color.set(p.state === "broken" ? 0xff2d55 : p.state === "dead" ? 0x2a3650 : p.color.getHex());
+      p.tube.material.color.set(p.state === "broken" ? 0xff2e63 : p.state === "dead" ? 0x1a2740 : p.color.getHex());
     }
     if (alarmAt) { this.alarmLight.position.copy(alarmAt).setY(2.5); this.alarmOn = true; } else this.alarmOn = false;
     this.syncTamperRings();
@@ -459,9 +459,9 @@ export class Scene3D {
       ring.material.opacity = 1 - t;
     }, 0, () => { this.scene.remove(ring); ring.geometry.dispose(); });
     if (!this.calm) this.shake = 0.5;
-    this.burst(id, 0xff5a3c, 260);
+    this.burst(id, 0xff4a2b, 260);
     this.slowMo(0.2, 1.8);
-    this.pulseFrom(id, 0xff3358, 6);
+    this.pulseFrom(id, 0xff2e63, 6);
     // fly the camera to the failure, then back out a little so the cascade is visible
     const off = new THREE.Vector3(10, 13, 16);
     this.controls.autoRotate = false;
@@ -473,7 +473,7 @@ export class Scene3D {
     const o = this.objs[id];
     const at = o ? o.group.position.clone() : this.center.clone();
     const ring = new THREE.Mesh(new THREE.RingGeometry(0.9, 1, 64),
-      new THREE.MeshBasicMaterial({ color: 0x7fe3f0, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
+      new THREE.MeshBasicMaterial({ color: 0x22e9ff, transparent: true, side: THREE.DoubleSide, blending: THREE.AdditiveBlending, depthWrite: false }));
     ring.rotation.x = -Math.PI / 2;
     ring.position.copy(at).setY(0.06);
     this.scene.add(ring);
@@ -482,8 +482,8 @@ export class Scene3D {
       ring.scale.set(s, s, s);
       ring.material.opacity = 1 - t;
     }, 0, () => { this.scene.remove(ring); ring.geometry.dispose(); });
-    this.burst(id, 0x7fe3f0, 160);
-    this.pulseFrom(id, 0x7fe3f0, 9);
+    this.burst(id, 0x22e9ff, 160);
+    this.pulseFrom(id, 0x22e9ff, 9);
     this.tween(0.01, () => this.resetView(), this.calm ? 0 : 1.2);
   }
 

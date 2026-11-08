@@ -51,7 +51,7 @@ function mix(a, b, t) {
   const pa = a.match(/\w\w/g).map(h => parseInt(h, 16)), pb = b.match(/\w\w/g).map(h => parseInt(h, 16));
   return "#" + pa.map((v, i) => Math.round(v + (pb[i] - v) * t).toString(16).padStart(2, "0")).join("");
 }
-const RAMP = [[20, "3fa7d6"], [24, "3cc3a0"], [27, "f2b33d"], [30, "f0643a"], [32, "d92d55"]];
+const RAMP = [[20, "1fb6ff"], [24, "19f5b0"], [27, "ffb21e"], [30, "ff6a2b"], [32, "ff2e63"]];
 function heat(t) {
   if (t === null || t === undefined) return "#56627a";
   if (t <= RAMP[0][0]) return "#" + RAMP[0][1];
@@ -63,7 +63,7 @@ function heat(t) {
   }
   return "#" + RAMP[RAMP.length - 1][1];
 }
-function shade(hex, f) { return mix(hex.replace("#", ""), f < 1 ? "0f1a2c" : "ffffff", Math.abs(1 - f)); }
+function shade(hex, f) { return mix(hex.replace("#", ""), f < 1 ? "060b16" : "ffffff", Math.abs(1 - f)); }
 
 function equipColor(a, s) {
   if (!s) return "#2c4060";
@@ -160,27 +160,7 @@ function update(snap) {
   $("clock").textContent = hh;
   $("outdoor").textContent = `${snap.outdoor_temp_c.toFixed(0)}°C`;
 
-  // asset colors (2D fallback map)
-  for (const [id, a] of Object.entries(assets)) {
-    const s = snap.assets[id], e = els.assets[id];
-    const base = a.type === "rack"
-      ? (s.status === "offline" ? "#2a3446" : heat(s.inlet_temp_c))
-      : equipColor(a, s);
-    e.top.setAttribute("fill", base);
-    e.left.setAttribute("fill", shade(base, 0.55));
-    e.right.setAttribute("fill", shade(base, 0.72));
-    e.g.classList.toggle("failed", BAD.has(s.status) && a.type !== "rack");
-  }
-
-  // edges
-  const gridDown = snap.assets.UTIL.status !== "ok";
-  for (const ed of els.edges) {
-    const s = snap.assets[ed.from];
-    const broken = ["tripped", "down", "depleted", "no_power"].includes(s.status);
-    const dead = s.status === "standby";
-    ed.path.classList.toggle("broken", broken);
-    ed.path.classList.toggle("dead", dead && !broken);
-  }
+  paintMap(previewSnap(snap));
 
   // new failure events → ripple
   const evs = snap.events || [];
@@ -195,20 +175,134 @@ function update(snap) {
 
   const cascade = predict(snap);
   drawPulses(snap, cascade);
-  if (scene3d) scene3d.update(snap, cascade);
+  if (scene3d) scene3d.update(previewSnap(snap), cascade);
+  syncScrubber(snap);
   renderTimeline(cascade);
   renderSide(snap, cascade);
+  finishUpdate(snap, cascade);
+}
 
+function paintMap(snap) {
+  for (const [id, a] of Object.entries(assets)) {
+    const s = snap.assets[id], e = els.assets[id];
+    const base = a.type === "rack"
+      ? (s.status === "offline" ? "#2a3446" : heat(s.inlet_temp_c))
+      : equipColor(a, s);
+    e.top.setAttribute("fill", base);
+    e.left.setAttribute("fill", shade(base, 0.55));
+    e.right.setAttribute("fill", shade(base, 0.72));
+    e.g.classList.toggle("failed", BAD.has(s.status) && a.type !== "rack");
+  }
+
+  for (const ed of els.edges) {
+    const s = snap.assets[ed.from];
+    const broken = ["tripped", "down", "depleted", "no_power"].includes(s.status);
+    const dead = s.status === "standby";
+    ed.path.classList.toggle("broken", broken);
+    ed.path.classList.toggle("dead", dead && !broken);
+  }
+}
+
+function finishUpdate(snap, cascade) {
+  const evs = snap.events || [];
   const atRisk = new Set(cascade.filter(c => assets[c.id].type === "rack").map(c => c.id)).size;
   $("risk").textContent = atRisk;
   $("risk-wrap").classList.toggle("zero", atRisk === 0);
-  document.body.style.setProperty("--danger", (Math.min(atRisk, 12) / 12 * 0.45).toFixed(2));
+  if (!preview.minute) document.body.style.setProperty("--danger", (Math.min(atRisk, 12) / 12 * 0.45).toFixed(2));
   const failed = evs.some(e => e.type === "failure");
   const contained = failed && atRisk === 0 && snap.agent && snap.agent.decision;
   $("status").textContent = contained ? "Contained, watching" : failed ? "Incident in progress" : "All systems normal";
   $("status").classList.toggle("incident", failed && !contained);
   $("status").classList.toggle("contained", !!contained);
-  void gridDown;
+}
+
+// ---------- time scrubber: drag into the predicted future ----------
+const preview = { minute: 0, plan: null, data: null, loading: false, ticks: 0, playing: false };
+
+function previewSnap(snap) {
+  if (!preview.minute || !preview.data || !preview.data.frames.length) return snap;
+  const f = preview.data.frames[Math.min(preview.minute, preview.data.frames.length) - 1];
+  return { ...snap, assets: f.assets };
+}
+
+async function loadFuture() {
+  if (preview.loading) return;
+  preview.loading = true;
+  try {
+    const q = preview.plan === null ? "" : `?plan=${preview.plan}`;
+    const r = await fetch(`/api/future${q}`);
+    preview.data = r.ok ? await r.json() : null;
+  } finally { preview.loading = false; }
+  repaintPreview();
+}
+
+function repaintPreview() {
+  if (!latest) return;
+  const snap = previewSnap(latest);
+  paintMap(snap);
+  if (scene3d) scene3d.update(snap, []);
+  const m = preview.minute, on = m > 0 && preview.data;
+  $("map").classList.toggle("future", !!on);
+  $("fut-back").hidden = !m;
+  const hot = on ? preview.data.hot[Math.min(m, preview.data.hot.length) - 1] : null;
+  const t = latest.t ? new Date(latest.t) : null;
+  const when = t ? new Date(t.getTime() + m * 60000).toTimeString().slice(0, 5) : "";
+  $("fut-label").textContent = m ? `+${m} min (${when})` : "Now";
+  $("fut-badge").innerHTML = on
+    ? `<span>Predicted, ${m} min from now</span><b>${hot} rack${hot === 1 ? "" : "s"} over 27°C</b><span>${preview.plan === null ? "if nothing is done" : esc(preview.data.label)}</span>`
+    : "";
+  if (on) document.body.style.setProperty("--danger", (Math.min(hot, 12) / 12 * 0.45).toFixed(2));
+}
+
+function setMinute(m) {
+  preview.minute = m;
+  $("fut-range").value = m;
+  if (m && !preview.data) loadFuture(); else repaintPreview();
+}
+
+function syncScrubber(snap) {
+  const incident = (snap.events || []).some(e => e.type === "failure") && (snap.cascade || []).length;
+  $("future-bar").classList.toggle("off", !incident);
+  $("fut-range").disabled = !incident;
+  $("fut-play").disabled = !incident;
+  if (!incident && preview.minute) { preview.minute = 0; preview.data = null; preview.plan = null; repaintPreview(); }
+  // plan chips: "Do nothing" plus each plan the agent proposed
+  const plans = (snap.agent && !snap.agent.decision && snap.agent.plans) || [];
+  // two futures side by side: doing nothing vs the agent's recommended plan
+  const chips = [`<button data-plan="" aria-pressed="${preview.plan === null}">Do nothing</button>`]
+    .concat(plans.slice(0, 1).map((p, i) => `<button data-plan="${i}" aria-pressed="${preview.plan === i}" title="${esc(p.name)}">With the fix</button>`)).join("");
+  if ($("fut-plans").dataset.html !== chips) { $("fut-plans").innerHTML = chips; $("fut-plans").dataset.html = chips; }
+  if (preview.plan !== null && !plans.length) { preview.plan = null; preview.data = null; }
+  // keep the preview current as live time moves on
+  if (preview.minute && ++preview.ticks % 3 === 0) loadFuture();
+}
+
+function playFuture() {
+  if (preview.playing) return;
+  preview.playing = true;
+  const start = performance.now(), from = preview.minute >= 60 ? 0 : preview.minute, dur = 6000 * (60 - from) / 60;
+  if (!preview.data) loadFuture();
+  const step = now => {
+    const t = Math.min(1, (now - start) / Math.max(dur, 1));
+    setMinute(Math.round(from + (60 - from) * t));
+    if (t < 1 && preview.playing) requestAnimationFrame(step); else preview.playing = false;
+  };
+  requestAnimationFrame(step);
+}
+
+function setupScrubber() {
+  $("fut-range").addEventListener("input", e => { preview.playing = false; setMinute(Number(e.target.value)); });
+  $("fut-play").onclick = playFuture;
+  $("fut-back").onclick = () => { preview.playing = false; setMinute(0); };
+  $("fut-plans").addEventListener("click", e => {
+    const b = e.target.closest("[data-plan]");
+    if (!b) return;
+    preview.plan = b.dataset.plan === "" ? null : Number(b.dataset.plan);
+    $("fut-plans").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+    if (scene3d && latest && latest.roots && latest.roots[0]) (preview.plan === null ? scene3d.failure : scene3d.recover).call(scene3d, latest.roots[0]);
+    preview.data = null;
+    if (!preview.minute) setMinute(30); else loadFuture();
+  });
 }
 
 // ---------- cascade: digital-twin projection from the backend + tamper checks ----------
@@ -279,34 +373,63 @@ function groupRows(cascade) {
   return out.sort((a, b) => a.minutes - b.minutes || (b.tamper ? 1 : 0) - (a.tamper ? 1 : 0));
 }
 
+let tlCache = "";
 function renderTimeline(cascade) {
-  const track = $("track"), chain = $("chain");
-  track.innerHTML = "";
-  [0, 15, 30, 45, 60].forEach(m => {
-    const t = document.createElement("span");
-    t.className = "tick"; t.style.left = `${(m / 60) * 100}%`; t.textContent = m === 0 ? "now" : `+${m} min`;
-    track.appendChild(t);
-  });
-  chain.innerHTML = "";
-  cascade = groupRows(cascade);
-  if (!cascade.length) {
-    chain.innerHTML = `<div class="empty">No failures predicted. Use "Test the facility" to break something.</div>`;
-    return;
-  }
-  cascade.slice(0, 16).forEach(c => {
-    const dot = document.createElement("span");
-    dot.className = "dot";
-    dot.style.left = `${Math.min(100, (c.minutes / 60) * 100)}%`;
-    dot.style.background = c.tamper ? "#c58bff" : c.now ? "var(--crit)" : "var(--warm)";
-    track.appendChild(dot);
+  const items = groupRows(cascade).slice(0, 24);
+  const now = items.filter(c => c.now), later = items.filter(c => !c.now);
 
-    const card = document.createElement("button");
-    card.className = "link" + (c.now ? " now" : "") + (c.tamper ? " tamper-link" : "");
-    card.innerHTML = `<div class="when">${c.now ? "Now" : `In ${Math.round(c.minutes)} min`}</div><div class="what">${c.text}</div>${c.because ? `<div class="why">${c.because}</div>` : ""}`;
-    card.onclick = () => select(c.id);
-    chain.appendChild(card);
+  // left: everything happening right now, stacked
+  const nowHtml = now.length
+    ? `<div class="tl-now-head"><b>Now</b><span>${now.length} active</span></div>
+       <ul>${now.slice(0, 4).map(c => `<li class="${c.tamper ? "tam" : ""}" data-id="${c.id}">${esc(c.text)}</li>`).join("")}</ul>
+       ${now.length > 4 ? `<div class="tl-more">and ${now.length - 4} more</div>` : ""}`
+    : `<div class="tl-now-head calm"><b>Now</b><span>All clear</span></div><p>Nothing failing. Use “Test the facility” to break something.</p>`;
+
+  // right: future failures pinned at their minute on the track (2-minute buckets)
+  const buckets = {};
+  later.forEach(c => { const k = Math.max(1, Math.round(c.minutes / 4) * 4); (buckets[k] ||= []).push(c); });
+  const keys = Object.keys(buckets).map(Number).sort((a, b) => a - b);
+  const ticks = [0, 15, 30, 45, 60].map(m => `<span class="tl-tick" style="left:${(m / 60) * 100}%">${m === 0 ? "Now" : `+${m}`}</span>`).join("");
+  const tags = keys.map((k, i) => {
+    const list = buckets[k], first = list[0];
+    const left = Math.min(96, Math.max(2, (k / 60) * 100));
+    void i;
+    return `<button class="tl-pin" style="left:${left}%" data-pct="${left}" data-id="${first.id}">
+      <span class="tl-stem"></span>
+      <span class="tl-tag chamfer"><b>+${Math.round(first.minutes)} min</b><span>${esc(first.text)}${list.length > 1 ? ` <em>+${list.length - 1}</em>` : ""}</span></span>
+    </button>`;
+  }).join("");
+  const trackHtml = `<div class="tl-axis">${ticks}</div>${tags || `<div class="tl-empty">${now.length ? "Nothing else predicted in the next hour." : ""}</div>`}`;
+
+  const html = nowHtml + "|" + trackHtml;
+  if (html === tlCache) return;
+  tlCache = html;
+  $("tl-now").innerHTML = nowHtml;
+  $("tl-now").classList.toggle("hot", now.length > 0);
+  $("tl-track").innerHTML = trackHtml;
+  layoutPins();
+}
+
+// place each tag above or below the axis so no two tags overlap
+function layoutPins() {
+  const track = $("tl-track"), W = track.clientWidth, TAG = 178, GAP = 8;
+  const lanes = { high: -Infinity, low: -Infinity };
+  track.querySelectorAll(".tl-pin").forEach(pin => {
+    const x = (Number(pin.dataset.pct) / 100) * W;
+    const tag = pin.querySelector(".tl-tag");
+    let lane = lanes.high <= lanes.low ? "high" : "low";
+    let start = Math.max(x - 4, lanes[lane] + GAP);
+    const other = lane === "high" ? "low" : "high";
+    if (start > x + 40 && Math.max(x - 4, lanes[other] + GAP) < start) { lane = other; start = Math.max(x - 4, lanes[other] + GAP); }
+    start = Math.min(start, W - TAG);
+    pin.classList.remove("high", "low");
+    pin.classList.add(lane);
+    tag.style.left = `${start - x}px`;
+    tag.style.right = "auto";
+    lanes[lane] = start + TAG;
   });
 }
+window.addEventListener("resize", () => { if ($("tl-track")) layoutPins(); });
 
 // ---------- side panel ----------
 function select(id) {
@@ -346,10 +469,14 @@ function renderSide(snap, cascade) {
     const first = failures[0], a = assets[first.asset];
     const KIND = { chiller_trip: "tripped", grid_loss: "lost utility power", fan_degradation: "fan is wearing out", sensor_silent: "sensor went silent", sensor_spoof: "sensor was hacked" };
     const next = cascade.find(c => c.minutes > 0);
-    inc = `<div class="card ${racks ? "alert" : "calm"}"><h2>${esc(a ? a.name : first.asset)} ${KIND[first.kind] || first.kind}</h2>
-      <p>Started ${snap.minute - first.minute} min ago${failures.length > 1 ? `, plus ${failures.length - 1} more failure${failures.length > 2 ? "s" : ""}` : ""}.</p>
-      <dl class="facts"><dt>Next</dt><dd class="txt">${next ? `${esc(next.text)}, in ${Math.round(next.minutes)} min` : "Nothing else predicted"}</dd>
-      <dt>Racks at risk</dt><dd>${racks} within the hour</dd></dl></div>`;
+    const uniq = new Set(failures.map(f => f.asset + f.kind)).size;
+    inc = `<div class="card chamfer incident ${racks ? "alert" : "calm"}">
+      <div class="inc-head"><span class="inc-dot"></span><h2>${esc(a ? a.name : first.asset)} ${KIND[first.kind] || first.kind}</h2></div>
+      <p class="inc-sub">${snap.minute - first.minute} min ago${uniq > 1 ? `, plus ${uniq - 1} more failure${uniq > 2 ? "s" : ""}` : ""}</p>
+      <div class="readouts2">
+        <div><b class="${racks ? "hot" : ""}">${racks}</b><span>racks at risk this hour</span></div>
+        <div><b>${next ? `+${Math.round(next.minutes)}` : "–"}<small>${next ? " min" : ""}</small></b><span>${next ? esc(next.text) : "nothing else predicted"}</span></div>
+      </div></div>`;
   }
   setSlot("slot-incident", inc);
 
@@ -365,10 +492,10 @@ function renderSide(snap, cascade) {
     const names = ids => ids.map(i => assets[i]?.name || i).join(", ");
     const feeds = a.feeds.length ? `<p>Feeds ${a.feeds.length > 4 ? a.feeds.length + " pieces of equipment" : names(a.feeds)}.</p>` : "";
     const fedBy = parents[selected]?.length ? `<p>Depends on ${names(parents[selected])}.</p>` : "";
-    html = `<div class="card"><h2>${esc(a.name)}</h2><p>Status: ${s.status.replace("_", " ")}</p>
+    html = `<div class="card chamfer"><h2>${esc(a.name)}</h2><p>Status: ${s.status.replace("_", " ")}</p>
       <dl class="facts">${facts}</dl>${METRIC[a.type] ? sparkline(selected, METRIC[a.type]) : ""}${fedBy}${feeds}</div>`;
   } else if (!failures.length) {
-    html = `<div class="card"><h2>Select any equipment</h2><p>Click a rack, chiller or cooling unit on the map to see its live readings and what it depends on.</p></div>`;
+    html = `<div class="card chamfer"><h2>Select any equipment</h2><p>Click a rack, chiller or cooling unit on the map to see its live readings and what it depends on.</p></div>`;
   }
   // the sparkline changes every tick; keep the asset card live but separate from the buttons above
   $("slot-asset").innerHTML = html;
@@ -376,7 +503,7 @@ function renderSide(snap, cascade) {
 
 function agentCard(ag, hasIncident) {
   if (!ag) {
-    return `<div class="card agent"><div class="agent-head"><h2>Agent</h2></div>
+    return `<div class="card chamfer agent"><div class="agent-head"><h2>Agent</h2></div>
       <p>${hasIncident ? "Starting…" : "Standing by. When something breaks, the agent investigates, tests fixes in the digital twin and proposes plans for you to approve."}</p></div>`;
   }
   const badge = ag.source === "nemotron" ? `<span class="badge nv">Nemotron</span>`
@@ -396,27 +523,82 @@ function agentCard(ag, hasIncident) {
     const chosen = ag.decision && ag.decision.index === i;
     const other = ag.decision && !chosen;
     const pct = base ? Math.round((n / base) * 100) : 0;
-    return `<div class="plan${i === 0 ? " best" : ""}${chosen ? " chosen" : ""}${other ? " faded" : ""}">
-      <div class="plan-tag">${chosen ? "Approved" : i === 0 ? "Recommended" : `Option ${i + 1}`}</div>
-      <h3>${esc(p.name)}</h3>
-      <div class="compare" aria-label="${n} racks at risk with this plan, ${base} if nothing is done">
-        <div class="cmp-row"><span>This plan</span><div class="bar"><i style="width:${Math.max(pct, 2)}%" class="${n ? "warn" : "ok"}"></i></div><b>${n}</b></div>
-        <div class="cmp-row"><span>Do nothing</span><div class="bar"><i style="width:100%" class="bad"></i></div><b>${base}</b></div>
-        <small>racks overheating in the next hour</small>
-      </div>
+    void pct;
+    return `<div class="plan chamfer${i === 0 ? " best" : ""}${chosen ? " chosen" : ""}${other ? " faded" : ""}">
+      <div class="plan-top"><span class="plan-rank">${String(i + 1).padStart(2, "0")}</span><span class="plan-tag">${chosen ? "Approved" : i === 0 ? "Recommended" : "Alternative"}</span></div>
+      <h3>${esc(p.name.replace(/^Plan [A-Z]:\s*/, ""))}</h3>
+      ${base || n ? `<div class="delta" aria-label="${n} racks overheat with this plan, ${base} if nothing is done">
+        <div class="delta-nums"><span class="d-from">${base}</span><span class="d-arrow" aria-hidden="true"></span><span class="d-to ${n ? "warn" : "ok"}">${n}</span></div>
+        <div class="delta-lbl">racks overheating in the next hour<br><span>if nothing is done, then with this plan</span></div>
+      </div>` : `<div class="delta flat"><div class="delta-nums"><span class="d-to ok">0</span></div><div class="delta-lbl">racks at risk either way<br><span>this plan restores the failed equipment</span></div></div>`}
       <p>${esc(p.reason)}</p>
       ${ag.decision ? (chosen ? `<p class="ok-note">Approved at minute ${ag.decision.minute}. Logged for the next shift${ag.decision.work_order ? " and a work order was created" : ""}.</p>` : "")
-        : `<div class="plan-btns"><button class="btn approve" data-approve="${i}">Approve</button><button class="btn ghost" data-dismiss="${i}">Dismiss</button></div>`}
+        : `<div class="plan-btns"><button class="btn approve cut" data-approve="${i}">Approve plan</button><button class="btn link-btn" data-dismiss="${i}">Dismiss</button></div>`}
     </div>`;
   }).join("");
 
   const rerun = ag.status !== "running" ? `<button class="btn ghost small" data-rerun>Investigate again</button>` : "";
   const others = ag.decision ? (ag.plans.length - 1) : 0;
-  const head = `<div class="card agent"><div class="agent-head"><h2>Agent</h2>${badge}</div><p class="agent-status">${status}</p>`;
+  const head = `<div class="card chamfer agent"><div class="agent-head"><h2>Agent</h2>${badge}</div><p class="agent-status">${status}</p>`;
   if (ag.status === "running" || !ag.plans.length) return `${head}<ol class="steps">${steps}</ol>${rerun}</div>`;
   // plans first once they are ready; the investigation folds away underneath
   return `${head}${plans}${others ? `<p class="muted-note">${others} other option${others > 1 ? "s" : ""} not chosen.</p>` : ""}
     <details class="how" ${stepsOpen ? "open" : ""}><summary>How the agent got here (${ag.steps.length} steps)</summary><ol class="steps">${steps}</ol></details>${rerun}</div>`;
+}
+
+// ---------- shift handoff ----------
+let lastFocus = null, replayTimer = null;
+async function openHandoff() {
+  lastFocus = document.activeElement;
+  $("handoff").hidden = false;
+  $("ho-acked").hidden = true;
+  const h = await (await fetch("/api/handoff")).json();
+  $("ho-sub").textContent = `Shift ending at ${h.shift_ends}. ${h.summary}`;
+  $("ho-status").className = "ho-status " + (h.racks_at_risk ? "risk" : "stable");
+  $("ho-status").innerHTML = `<b>${h.racks_at_risk ? "Needs attention" : "Stable"}</b><span>${esc(h.status)}</span>`;
+  const li = list => list.map(x => `<li>${esc(x)}</li>`).join("");
+  $("ho-open").innerHTML = li(h.open_items);
+  $("ho-watch").innerHTML = li(h.watch_next);
+  $("ho-dec").innerHTML = li(h.decisions);
+  $("ho-timeline").innerHTML = h.timeline.length
+    ? h.timeline.map(t => `<li class="k-${t.kind}"><time>${t.time}</time><span>${esc(t.text)}</span></li>`).join("")
+    : `<li class="k-none"><span>A quiet shift. Nothing failed.</span></li>`;
+  $("ho-close").focus();
+  replay();
+}
+function replay() {
+  clearTimeout(replayTimer);
+  const items = [...$("ho-timeline").children];
+  items.forEach(el => el.classList.remove("shown"));
+  const reduced = document.body.classList.contains("calm") || matchMedia("(prefers-reduced-motion: reduce)").matches;
+  items.forEach((el, i) => {
+    if (reduced) { el.classList.add("shown"); return; }
+    replayTimer = setTimeout(() => el.classList.add("shown"), 250 + i * 700);
+  });
+}
+function closeHandoff() {
+  clearTimeout(replayTimer);
+  $("handoff").hidden = true;
+  if (lastFocus) lastFocus.focus();
+}
+function setupTimelineClicks() {
+  $("tl").addEventListener("click", e => { const t = e.target.closest("[data-id]"); if (t) select(t.dataset.id); });
+}
+
+function setupHandoff() {
+  $("handoff-btn").onclick = openHandoff;
+  $("ho-close").onclick = closeHandoff;
+  $("ho-play").onclick = replay;
+  $("handoff").addEventListener("click", e => { if (e.target.id === "handoff") closeHandoff(); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("handoff").hidden) closeHandoff(); });
+  $("ho-ack").addEventListener("submit", async e => {
+    e.preventDefault();
+    const name = $("ho-name").value.trim();
+    if (!name) return;
+    const r = await post("/api/handoff/ack", { name });
+    $("ho-acked").hidden = false;
+    $("ho-acked").textContent = `Acknowledged by ${r.acknowledged_by}. The new shift has the full story.`;
+  });
 }
 
 // ---------- agent buttons ----------
@@ -427,6 +609,7 @@ function setupAgentButtons() {
     if (ap) {
       ap.disabled = true; ap.textContent = "Approving…";
       await post("/api/agent/approve", { index: Number(ap.dataset.approve) });
+      preview.plan = null; preview.data = null; setMinute(0);
       const root = latest && (latest.roots || [])[0];
       if (scene3d && root) scene3d.recover(root);
     } else if (di) {
@@ -456,6 +639,7 @@ function setupMenu() {
     await post("/api/reset");
     Object.keys(hist).forEach(k => delete hist[k]);
     lastEventCount = 0; selected = null; stepsShown = 0; close();
+    preview.plan = null; preview.data = null; setMinute(0);
     if (scene3d) { scene3d.select(null); scene3d.resetView(); }
   };
   $("calm-btn").onclick = () => {
@@ -505,6 +689,9 @@ function setView(v) {
   }
   setupMenu();
   setupAgentButtons();
+  setupScrubber();
+  setupHandoff();
+  setupTimelineClicks();
   const es = new EventSource("/api/stream");
   es.onmessage = e => update(JSON.parse(e.data));
 })();

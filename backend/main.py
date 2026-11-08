@@ -90,9 +90,26 @@ def get_cascade():
 
 
 @app.get("/api/future")
-def get_future():
-    """Minute-by-minute projection of the next 60 minutes (for the time scrubber)."""
-    return state["future"] or {"from_minute": None, "frames": []}
+def get_future(plan: Optional[int] = None):
+    """Minute-by-minute projection of the next 60 minutes (for the time scrubber).
+    With ?plan=N, the agent's plan N is applied to a copy first, so you can compare futures."""
+    fac = state["facility"]
+    if plan is None:
+        result = project(fac)
+        label = "Do nothing"
+    else:
+        run = state["agent"]
+        if not run or plan >= len(run.state["plans"]):
+            raise HTTPException(400, "That plan is not available.")
+        p = run.state["plans"][plan]
+        twin = fac.copy()
+        for a in p["actions"]:
+            twin.apply(a["action"], a.get("asset"))
+        result = project(twin)
+        label = p["name"]
+    hot = [sum(1 for k, v in f["assets"].items() if k.startswith("RACK-") and (v.get("inlet_temp_c") or 0) >= 27)
+           for f in result["frames"]]
+    return {"from_minute": fac.minute, "label": label, "frames": result["frames"], "hot": hot}
 
 
 @app.get("/api/stream")
@@ -201,6 +218,97 @@ def agent_dismiss(choice: PlanChoice):
     log_decision({"time": time.time(), "facility_minute": state["facility"].minute, "decision": "dismissed",
                   "plan": plan["name"], "reason": choice.reason})
     return {"ok": True}
+
+
+# ---------- shift handoff ----------
+KIND_TEXT = {"chiller_trip": "tripped", "grid_loss": "lost utility power", "fan_degradation": "fan started wearing out",
+             "sensor_silent": "sensor went silent", "sensor_spoof": "sensor was tampered with"}
+ACTION_TEXT = {"start_backup_chiller": "Backup chiller started", "raise_fan_speed": "Fan speeds raised",
+               "start_generator": "Generator started", "shift_load": "Load moved off a row", "isolate_rack": "Rack isolated for inspection"}
+ACKS = ROOT / "data" / "handoff_acks.jsonl"
+
+
+def build_handoff() -> dict:
+    """Everything the next shift needs. Uses Naomi's business/handoff.py when it exists."""
+    try:
+        from business.handoff import build_handoff as custom  # type: ignore
+        return custom(state)
+    except Exception:
+        pass
+    fac, snap = state["facility"], state["latest"] or {}
+    clock = lambda m: (fac.start.replace(second=0) + __import__("datetime").timedelta(minutes=m)).strftime("%H:%M")
+    timeline, seen = [], set()
+    for e in fac.events:
+        if e["type"] == "failure":
+            if (e["asset"], e["kind"]) in seen:
+                continue
+            seen.add((e["asset"], e["kind"]))
+            timeline.append({"minute": e["minute"], "time": clock(e["minute"]), "kind": "failure",
+                             "text": f'{fac.assets[e["asset"]]["name"]} {KIND_TEXT.get(e["kind"], e["kind"])}'})
+        else:
+            timeline.append({"minute": e["minute"], "time": clock(e["minute"]), "kind": "action",
+                             "text": ACTION_TEXT.get(e["action"], e["action"]) + " (approved by operator)"})
+    run = state["agent"]
+    if run:
+        st = run.state
+        first = next((x for x in timeline if x["kind"] == "failure"), None)
+        m = st.get("started_minute", first["minute"] if first else 0)
+        sims = [x for x in st["steps"] if x["kind"] == "sim"]
+        src = "Nemotron" if st.get("source") == "nemotron" else "The scripted planner"
+        timeline.append({"minute": m, "time": clock(m), "kind": "agent",
+                         "text": f'{src} investigated in {len(st["steps"])} steps and tested {len(sims)} plans in the twin'})
+        if st.get("plans"):
+            p0 = st["plans"][0]
+            timeline.append({"minute": m, "time": clock(m), "kind": "agent",
+                             "text": f'Recommended “{p0["name"]}”: {p0["outcome"]["racks_at_risk"]} racks at risk vs {st["baseline"]["racks_at_risk"]} if nothing was done'})
+    timeline.sort(key=lambda x: (x["minute"], {"failure": 0, "agent": 1, "action": 2}[x["kind"]]))
+
+    still_down = [f'{a["name"]} is {fac.s[i]["status"].replace("_", " ")} and needs a technician' for i, a in fac.assets.items()
+                  if fac.s[i].get("status") in ("tripped", "down", "depleted", "no_power", "degrading", "offline")]
+    tampered = [f'{fac.assets[i]["name"]} sensor needs inspection' for i, v in fac.s.items() if v.get("sensor") in ("spoofed", "silent")]
+    chain = snap.get("cascade", [])
+    racks = sorted({c["id"] for c in chain if c["type"] == "rack"})
+    watch = [f'+{c["minutes"]} min: {c["text"]}' for c in chain if c["minutes"] > 0][:4]
+    decisions = []
+    if DECISIONS.exists():
+        for line in DECISIONS.read_text().splitlines()[-5:]:
+            try:
+                d = json.loads(line)
+                decisions.append(f'{d["decision"].capitalize()}: {d["plan"]}')
+            except Exception:
+                continue
+    status = ("No racks at risk in the next hour." if not racks
+              else f"{len(racks)} racks at risk in the next hour.")
+    return {
+        "shift_ends": clock(fac.minute),
+        "status": status,
+        "racks_at_risk": len(racks),
+        "timeline": timeline,
+        "open_items": still_down + tampered or ["Nothing open"],
+        "watch_next": watch or ["Nothing predicted in the next hour"],
+        "decisions": decisions or ["No decisions this shift"],
+        "summary": (f"{len(seen)} failure{'s' if len(seen) != 1 else ''} this shift. "
+                    + (f"{len(decisions)} plan{'s' if len(decisions) != 1 else ''} approved. " if decisions else "No fixes approved yet. ")
+                    + status),
+    }
+
+
+class Ack(BaseModel):
+    name: str
+
+
+@app.get("/api/handoff")
+def handoff():
+    return build_handoff()
+
+
+@app.post("/api/handoff/ack")
+def handoff_ack(ack: Ack):
+    entry = {"time": time.time(), "facility_minute": state["facility"].minute, "acknowledged_by": ack.name.strip()[:60] or "Incoming operator"}
+    ACKS.parent.mkdir(exist_ok=True)
+    with open(ACKS, "a") as f:
+        f.write(json.dumps(entry) + "\n")
+    return entry
 
 
 @app.get("/api/options")

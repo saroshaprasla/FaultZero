@@ -68,7 +68,11 @@ class IncidentTools:
         self.sim_cache: Dict[str, dict] = {}
 
     def get_incident(self) -> dict:
-        fails = [e for e in self.f.events if e["type"] == "failure"]
+        seen, fails = set(), []
+        for e in self.f.events:
+            if e["type"] == "failure" and (e["asset"], e["kind"]) not in seen:
+                seen.add((e["asset"], e["kind"]))
+                fails.append(e)
         return {"facility_minute": self.f.minute,
                 "failures": [{"asset": e["asset"], "name": self.f.assets[e["asset"]]["name"], "kind": e["kind"],
                               "minutes_ago": self.f.minute - e["minute"]} for e in fails],

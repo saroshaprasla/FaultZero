@@ -29,6 +29,7 @@
       <div class="readout risk zero" id="risk-wrap"><span class="num" id="risk">0</span><span class="lbl">racks at risk</span></div>
     </div>
 
+    <button class="btn" id="handoff-btn">End shift</button>
     <div class="menu-wrap">
       <button class="btn" id="menu-btn" aria-haspopup="true" aria-expanded="false">Test the facility</button>
       <div class="menu" id="menu" hidden>
@@ -46,6 +47,17 @@
 
   <main class="map" id="map" aria-label="Data hall floor map">
     <div id="three" class="three"></div>
+    <div class="fut-badge" id="fut-badge" aria-live="polite"></div>
+    <div class="future-bar off" id="future-bar" role="group" aria-label="Preview the predicted future">
+      <button class="btn small-btn" id="fut-play" title="Play the next 60 minutes">Play the next hour</button>
+      <div class="fut-track">
+        <input type="range" id="fut-range" min="0" max="60" step="1" value="0" aria-label="Minutes into the future">
+        <div class="fut-ticks" aria-hidden="true"><span>Now</span><span>+15</span><span>+30</span><span>+45</span><span>+60 min</span></div>
+      </div>
+      <span class="fut-label" id="fut-label">Now</span>
+      <div class="fut-plans" id="fut-plans" aria-label="Which future"></div>
+      <button class="btn ghost small-btn" id="fut-back" hidden>Back to now</button>
+    </div>
     <svg id="svg" role="img" aria-label="Isometric map of the data hall"></svg>
     <div class="view-tools" id="view-tools">
       <span id="view-hint">Drag to turn, scroll to zoom</span>
@@ -74,10 +86,39 @@
       <h2>What fails next</h2>
       <span id="time-sub">Predicted from live readings over the next 60 minutes</span>
     </div>
-    <div class="track" id="track"></div>
-    <div class="chain" id="chain"></div>
+    <div class="tl" id="tl">
+      <div class="tl-now chamfer" id="tl-now"></div>
+      <div class="tl-track" id="tl-track"></div>
+    </div>
   </section>
 </div>
+<div class="handoff" id="handoff" role="dialog" aria-modal="true" aria-labelledby="ho-title" hidden>
+  <div class="ho-panel">
+    <header class="ho-top">
+      <div><h2 id="ho-title">Shift handoff</h2><p id="ho-sub">Loading…</p></div>
+      <button class="btn ghost" id="ho-close" aria-label="Close handoff">Close</button>
+    </header>
+    <div class="ho-grid">
+      <section class="ho-replay" aria-label="What happened this shift">
+        <div class="ho-head"><h3>What happened</h3><button class="btn small-btn" id="ho-play">Replay</button></div>
+        <ol class="ho-timeline" id="ho-timeline"></ol>
+      </section>
+      <section class="ho-brief" aria-label="Brief for the next operator">
+        <div class="ho-status" id="ho-status"></div>
+        <h3>Still open</h3><ul id="ho-open"></ul>
+        <h3>Watch next</h3><ul id="ho-watch"></ul>
+        <h3>Decisions this shift</h3><ul id="ho-dec"></ul>
+        <form class="ho-ack" id="ho-ack">
+          <label for="ho-name">Incoming operator</label>
+          <div class="ho-ack-row"><input id="ho-name" autocomplete="name" placeholder="Your name" required>
+          <button class="btn approve" type="submit">Acknowledge handoff</button></div>
+        </form>
+        <p class="ok-note" id="ho-acked" hidden></p>
+      </section>
+    </div>
+  </div>
+</div>
+
 <script type="importmap">
 { "imports": {
     "three": "/static/vendor/three.module.js",
