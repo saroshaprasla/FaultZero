@@ -1,5 +1,7 @@
 # FaultZero
 
+[![tests](https://github.com/saroshaprasla/FaultZero/actions/workflows/tests.yml/badge.svg)](https://github.com/saroshaprasla/FaultZero/actions/workflows/tests.yml)
+
 **See the chain before it breaks.** FaultZero predicts how a data center failure will spread over the next hour, tests fixes in a live digital twin, and lets an operator approve the one that works.
 
 HackUTD 2026: Zero Day · Tracks: NMC², CBRE, NVIDIA, HackUTD Design · MLH: GoDaddy Registry domain, Tiger Data
@@ -10,7 +12,7 @@ Team: Sarosha, Binitha, Naomi
 
 Demo video: coming soon · Devpost: coming soon
 
-| ⏱ 12 min | 🚨 141 / 141 | 🧪 30% wrong physics | 🛡 15 / 15 | ⚡ ~9 ms | ✅ 27 tests |
+| ⏱ 12 min | 🚨 141 / 141 | 🧪 30% wrong physics | 🛡 15 / 15 | ⚡ ~9 ms | ✅ 29 tests |
 | :---: | :---: | :---: | :---: | :---: | :---: |
 | median head start over the facility alarm | overheating incidents warned in advance (alarm: 0) | still 14.5+ min of warning | hidden sensor attacks caught (alarm: 0) | to simulate the next 60 minutes | passing, every push |
 
@@ -71,6 +73,7 @@ Failures have an adjustable **severity** (30% to 100%). Operators can start the 
 | Digital twin | Copies the facility and steps it 60 minutes ahead | Reads the cause (broken equipment), not just rising temperatures |
 | Cascade engine | Records the first limit crossing per asset and walks the dependency graph for the root cause | Every prediction says *because X failed* |
 | NVIDIA Nemotron agent | Uses 6 tools: incident, forecast, asset, mitigations, simulate plan, submit plans | Never reports its own numbers; every plan is re-simulated and ranked by the twin |
+| Probabilistic forecast | Runs 24 possible futures with different failure severities and noise, reports a probability and a likely range | Tested for honesty: every 90%+ call came true, every ≤10% call did not |
 | Self-calibration | Infers how bad a failure is (e.g. a chiller at 38% capacity) from the last two sensor readings | The twin is never told the answer; the live forecast runs on what sensors reveal |
 | Scripted planner | Runs the same tools if the NVIDIA API is unreachable | The demo never breaks |
 
@@ -89,6 +92,20 @@ Failures have an adjustable **severity** (30% to 100%). Operators can start the 
 - Hacked or silent sensors: the alarm and trend line caught **0**; the tamper check flagged **all 15** that overheated a rack
 - **No false alarms** in 100 calm runs, for every method
 
+### Are the forecast's probabilities honest?
+
+The console doesn't just say *"a rack overheats in 9 min"*. It runs 24 possible futures and says *"88% chance this hour, likely in 8–12 min"*. We checked those numbers against 150 incidents (`sim/evaluate_ensemble.py`), forecasting from sensor readings only:
+
+| | Physics matches the twin | Real building 30% worse |
+|---|---|---|
+| "90%+ likely" calls that came true | 57 / 57 | 75 / 75 |
+| "10% or less" calls that came true | 0 / 72 | 0 / 57 |
+| Brier score (0 = perfect, 0.25 = coin flip) | 0.020 | 0.017 |
+| Median timing error | 0 min | 2 min |
+| Real minute inside the 80% range | 98.5% (cautious) | 27% (too narrow) |
+
+The probability stays reliable even when our physics is wrong. The timing range does not: with 30% worse physics it is off by about 2 minutes and too narrow. That is the clearest sign of what a real deployment needs first: fitting the twin's physics to the building.
+
 ### What if our physics is wrong?
 
 The biggest risk of any digital twin is that the real building doesn't behave like the model. So we changed the simulated building's physics while both twins kept assuming the original values, and reran 120 incidents per scenario (`sim/robustness.py`).
@@ -103,7 +120,7 @@ The biggest risk of any digital twin is that the real building doesn't behave li
 
 Median minutes of warning before a rack overheats. Every method that warned at all warned in 100% of incidents. Model error costs the twin a few minutes, but it stays ahead of the trend line in every scenario.
 
-Reproduce: `python sim/evaluate_twin.py` and `python sim/robustness.py` (results in `sim/twin_results.json` and `sim/robustness_results.json`).
+Reproduce: `python sim/evaluate_twin.py`, `python sim/robustness.py` and `python sim/evaluate_ensemble.py` (results in `sim/twin_results.json` and `sim/robustness_results.json`).
 
 We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse than a simple trend line, because it only sees temperatures after they start rising. That result is why FaultZero models the cause instead of forecasting the symptom.
 
@@ -117,9 +134,10 @@ We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse 
 - **Never a dead demo.** If the NVIDIA API is unreachable, a scripted planner runs the same tools and the same verification.
 - **Seeing what sensors hide.** A spoofed sensor reads "fine" while its rack overheats. We flag it from the power draw jump against a flat temperature reading.
 - **One live stream for everything.** Server-Sent Events push each simulated minute, the cascade and every agent step to the 3D view, timeline and plan cards at once.
+- **Probabilities you can check.** A 24-future ensemble runs in about 60 ms, and we measured whether its probabilities come true instead of just displaying them.
 - **A twin that calibrates itself.** It inverts its own physics: two chilled-water readings are enough to estimate a chiller's remaining capacity within a few percent, so the forecast runs on evidence, not on the simulator's hidden truth.
 - **History in a time-series database.** Every simulated minute of all 41 assets goes to a Tiger Data hypertable through a non-blocking background writer; the console charts any rack with `time_bucket()` queries. If the database is down, the demo doesn't notice.
-- **Tested.** 27 automated tests cover the twin, the cascade, calibration, the agent, the business rules and the live API. They caught a real sign error in our calibration formula before it shipped.
+- **Tested on every push.** 29 automated tests run in GitHub Actions and cover the twin, the cascade, calibration, the agent, the business rules and the live API. They caught a real sign error in our calibration formula before it shipped.
 - **Honest evaluation.** We tested against two baselines on 200 incidents, handicapped our own twin, and reported where our ML model lost.
 
 ## Responsible design
@@ -138,8 +156,8 @@ We also trained a machine-learning forecaster (`sim/evaluate.py`). It did worse 
 | `business/` | Dollars at risk, work-order dispatch, shift handoff |
 | `frontend/` | 3D control room (three.js) and story page |
 | `phone/` | Judge "break my data center" page |
-| `sim/` | Evaluation, robustness test, trend-line baseline, ML experiment |
-| `tests/` | 27 automated tests (`python -m pytest tests -q`) |
+| `sim/` | Evaluation, robustness test, forecast honesty test, agent benchmark, trend-line baseline, ML experiment |
+| `tests/` | 29 automated tests (`python -m pytest tests -q`) |
 | `data/` | Facility layout and decision logs |
 | `docs/` | Data formats, API and architecture diagram |
 

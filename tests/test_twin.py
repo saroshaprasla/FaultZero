@@ -94,3 +94,18 @@ def test_severity_controls_how_bad_it_gets():
             f.step()
         return max(f.s[r]["inlet_temp_c"] for r in RACKS)
     assert peak(0.3) < peak(0.7) < peak(1.0)
+
+
+def test_ensemble_gives_probability_and_range():
+    from backend.ensemble import forecast
+    f = warmed()
+    f.inject("chiller_trip", "CH-2", severity=0.8)
+    fc = forecast(f, k=12)
+    assert fc["runs"] == 12 and 0 <= fc["crit"]["probability"] <= 1
+    if "p10" in fc["crit"]:
+        assert fc["crit"]["p10"] <= fc["crit"]["p50"] <= fc["crit"]["p90"]
+
+
+def test_ensemble_sees_no_danger_when_calm():
+    from backend.ensemble import forecast
+    assert forecast(warmed(), k=8)["crit"]["probability"] == 0

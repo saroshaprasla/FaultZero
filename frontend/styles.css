@@ -676,3 +676,8 @@ html, body { background: radial-gradient(1200px 700px at 35% 30%, #0b1630 0%, #0
 
 .calib { margin: 4px 0 8px; font-size: 12px; color: var(--muted); }
 .calib b { color: var(--future); font-weight: 600; }
+
+.ens { margin: 8px 0 4px; font-size: 12.5px; color: var(--muted); }
+.ens b { color: #e8f6ff; font-weight: 700; }
+.ens span { color: var(--muted); }
+.ens em { font-style: normal; color: var(--future); opacity: .8; }

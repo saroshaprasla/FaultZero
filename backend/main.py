@@ -31,6 +31,7 @@ from backend.cascade import project
 from backend.fake_sim import ACTIONS, FAILURE_KINDS, FakeFacility, load_assets
 from backend.tiger import tiger
 from backend import calibrate
+from backend import ensemble
 
 ROOT = Path(__file__).resolve().parent.parent
 TICK_SECONDS = 1.0  # one simulated minute per real second
@@ -47,17 +48,24 @@ def refresh_cascade(snap: dict) -> dict:
     fac = state["facility"]
     if any(e["type"] == "failure" for e in fac.events):
         cal = snap.get("calibration") or {}
+        twin = fac.copy()
         if cal:  # forecast from what the sensors reveal, not from the simulator's hidden truth
-            twin = fac.copy()
             calibrate.apply(twin, cal)
-            result = project(twin)
-        else:
-            result = project(fac)
+        result = project(twin)
+        # probabilistic forecast: 24 possible futures, refreshed every 3 simulated minutes
+        try:
+            if snap["minute"] - state.get("ens_minute", -99) >= 3:
+                state["ens"] = ensemble.forecast(twin, seed=snap["minute"])
+                state["ens_minute"] = snap["minute"]
+            snap["forecast"] = state.get("ens")
+        except Exception:
+            snap["forecast"] = None
         snap["cascade"] = result["chain"]
         snap["roots"] = result["roots"]
         state["future"] = {"from_minute": snap["minute"], "frames": result["frames"]}
     else:
         snap["cascade"], snap["roots"], state["future"] = [], [], None
+        state["ens"], state["ens_minute"] = None, -99
     st = state["agent"].state if state["agent"] else None
     # copy so the agent thread can keep appending while this snapshot is sent
     snap["agent"] = {**st, "steps": list(st["steps"]), "plans": list(st["plans"])} if st else None

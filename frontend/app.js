@@ -441,6 +441,14 @@ function select(id) {
   if (latest) renderSide(latest, predict(latest));
 }
 
+function ensHtml(fc) {
+  const c = fc && fc.crit;
+  if (!c) return "";
+  const pct = Math.round(c.probability * 100);
+  const when = c.p50 != null ? ` in <b>~${Math.round(c.p50)} min</b> <span>(likely ${Math.round(c.p10)}–${Math.round(c.p90)})</span>` : "";
+  return `<p class="ens" title="${fc.runs} possible futures, each with a different failure severity and sensor noise">
+    <b>${pct}%</b> chance a rack passes 32°C this hour${pct >= 10 ? when : ""} <em>· ${fc.runs} simulated futures</em></p>`;
+}
 function calibHtml(snap) {
   const cal = Object.entries(snap.calibration || {}).filter(([, e]) => e.readings >= 2);
   if (!cal.length) return "";
@@ -519,6 +527,7 @@ function renderSide(snap, cascade) {
       <p class="inc-sub">${snap.minute - first.minute} min ago${uniq > 1 ? `, plus ${uniq - 1} more failure${uniq > 2 ? "s" : ""}` : ""}</p>
       ${calibHtml(snap)}
       ${raceHtml(snap, first, cascade)}
+      ${ensHtml(snap.forecast)}
       <div class="readouts2">
         <div><b class="${racks ? "hot" : ""}">${racks}</b><span>racks at risk this hour</span></div>
         <div><b>${next ? `+${Math.round(next.minutes)}` : "–"}<small>${next ? " min" : ""}</small></b><span>${next ? esc(next.text) : "nothing else predicted"}</span></div>

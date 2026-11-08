@@ -1,0 +1,36 @@
+{
+  "physics_matches_twin": {
+    "incidents": 150,
+    "reached_32c_within_hour": 68,
+    "forecasts_with_a_range": 68,
+    "coverage_of_80pct_range": 0.985,
+    "median_abs_error_of_p50_min": 0.0,
+    "median_range_width_min": 3.8,
+    "brier_score_within_hour": 0.02,
+    "said_90pct_plus": {
+      "count": 57,
+      "came_true": 57
+    },
+    "said_10pct_or_less": {
+      "count": 72,
+      "came_true": 0
+    }
+  },
+  "real_building_30pct_worse": {
+    "incidents": 150,
+    "reached_32c_within_hour": 86,
+    "forecasts_with_a_range": 86,
+    "coverage_of_80pct_range": 0.267,
+    "median_abs_error_of_p50_min": 2.0,
+    "median_range_width_min": 3.0,
+    "brier_score_within_hour": 0.017,
+    "said_90pct_plus": {
+      "count": 75,
+      "came_true": 75
+    },
+    "said_10pct_or_less": {
+      "count": 57,
+      "came_true": 0
+    }
+  }
+}
