@@ -1,0 +1,63 @@
+{
+  "setup": {
+    "incidents": 200,
+    "calm_runs": 100,
+    "warning_limit_c": 27.0,
+    "alert_window_min": 30,
+    "watch_minutes": 60,
+    "severity_range": [
+      0.3,
+      1.0
+    ],
+    "twin_handicaps": "noise reseeded, severity mis-estimated by up to 30%, hidden heat unknown",
+    "caveat": "the twin uses the same physics as the simulated facility"
+  },
+  "equipment_failures": {
+    "count": 147,
+    "fixed_alarm": {
+      "incidents_that_really_overheated": 141,
+      "warned_before_overheating": 0,
+      "early_warning_rate": 0.0,
+      "noticed_at_all_within_60_min": 141,
+      "median_minutes_of_warning": 0.0,
+      "warned_10_plus_min_ahead": 0,
+      "warned_the_minute_it_failed": 0,
+      "false_alarm_incidents": 0
+    },
+    "straight_line_forecast": {
+      "incidents_that_really_overheated": 141,
+      "warned_before_overheating": 141,
+      "early_warning_rate": 1.0,
+      "noticed_at_all_within_60_min": 141,
+      "median_minutes_of_warning": 9,
+      "warned_10_plus_min_ahead": 68,
+      "warned_the_minute_it_failed": 0,
+      "false_alarm_incidents": 6
+    },
+    "faultzero_twin": {
+      "incidents_that_really_overheated": 141,
+      "warned_before_overheating": 141,
+      "early_warning_rate": 1.0,
+      "noticed_at_all_within_60_min": 141,
+      "median_minutes_of_warning": 12,
+      "warned_10_plus_min_ahead": 101,
+      "warned_the_minute_it_failed": 94,
+      "false_alarm_incidents": 6
+    },
+    "twin_warned_earlier_than_straight_line": 133,
+    "note_on_false_alarms": "the 'false alarms' are mild fan failures that cross 27\u00b0C just after the 60-minute watch window, so they are late, not wrong"
+  },
+  "tampered_or_silent_sensors": {
+    "count": 53,
+    "really_overheated": 15,
+    "fixed_alarm_noticed": 0,
+    "straight_line_noticed": 0,
+    "faultzero_tamper_check_flagged_before_overheating": 15
+  },
+  "calm_runs_with_false_alarm": {
+    "fixed_alarm": 0,
+    "straight_line_forecast": 0,
+    "faultzero_twin": 0,
+    "faultzero_tamper_check": 0
+  }
+}

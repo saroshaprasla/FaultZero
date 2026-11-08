@@ -264,7 +264,9 @@ def build_handoff() -> dict:
         if st.get("plans"):
             p0 = st["plans"][0]
             timeline.append({"minute": m, "time": clock(m), "kind": "agent",
-                             "text": f'Recommended “{p0["name"]}”: {p0["outcome"]["racks_at_risk"]} racks at risk vs {st["baseline"]["racks_at_risk"]} if nothing was done'})
+                             "text": f'Recommended “{p0["name"]}”: {p0["outcome"]["racks_at_risk"]} racks at risk vs {st["baseline"]["racks_at_risk"]} if nothing was done'
+                                 + (f' (about ${st["baseline"]["usd_at_risk"] - p0["outcome"]["usd_at_risk"]:,} of illustrative exposure avoided)'
+                                    if (st["baseline"].get("usd_at_risk") or 0) > (p0["outcome"].get("usd_at_risk") or 0) else '')})
     timeline.sort(key=lambda x: (x["minute"], {"failure": 0, "agent": 1, "action": 2}[x["kind"]]))
 
     still_down = [f'{a["name"]} is {fac.s[i]["status"].replace("_", " ")} and needs a technician' for i, a in fac.assets.items()
@@ -348,6 +350,13 @@ def options():
 def _frame(fac) -> dict:
     keep = ("status", "inlet_temp_c", "supply_temp_c", "supply_air_c", "battery_min", "fan_pct", "load_pct", "power_kw")
     return {"minute": fac.minute, "assets": {k: {x: v[x] for x in keep if x in v} for k, v in fac.snapshot()["assets"].items()}}
+
+
+@app.get("/api/eval")
+def eval_results():
+    """Results of sim/evaluate_twin.py (200 simulated incidents)."""
+    f = ROOT / "sim" / "twin_results.json"
+    return json.loads(f.read_text()) if f.exists() else {}
 
 
 @app.get("/api/story")

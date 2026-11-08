@@ -573,7 +573,9 @@ function speakBriefing(snap, cascade) {
     const name = p.name.replace(/^Plan [A-Z]:\s*/, "");
     say(`${a.name} ${KIND[first.kind] || ""}. ` +
         (base ? `${base} racks will overheat within the hour${firstMin.length ? `, the first in ${Math.round(Math.min(...firstMin))} minutes` : ""}. ` : "") +
-        `I recommend: ${name}. ${n === 0 ? "It keeps every rack safe." : `It cuts that to ${n}.`} Approve when ready.`, "brief|" + key);
+        `I recommend: ${name}. ${n === 0 ? "It keeps every rack safe." : `It cuts that to ${n}.`} ` +
+        (ag.baseline.usd_at_risk > p.outcome.usd_at_risk ? `That protects about ${Math.round((ag.baseline.usd_at_risk - p.outcome.usd_at_risk) / 1000)} thousand dollars this hour. ` : "") +
+        `Approve when ready.`, "brief|" + key);
   }
   if (ag.decision) say("Plan approved. The chain is broken.", "done|" + key);
 }
@@ -590,6 +592,14 @@ function setupVoice() {
   if ("speechSynthesis" in window) speechSynthesis.getVoices();
 }
 
+const usd = n => "$" + Math.round(n).toLocaleString("en-US");
+function moneyRow(from, to) {
+  if (from == null || to == null || (!from && !to)) return "";
+  const saved = Math.max(0, from - to);
+  return `<div class="money" title="Illustrative: $1,000 per rack-hour above 27°C over the predicted hour. Not a verified loss.">
+    <span class="m-from">${usd(from)}</span><span class="m-arrow" aria-hidden="true">→</span><span class="m-to ${to ? "warn" : "ok"}">${usd(to)}</span>
+    <span class="m-lbl">at risk this hour${saved ? ` · <b>${usd(saved)} protected</b>` : ""}</span></div>`;
+}
 function agentCard(ag, hasIncident) {
   if (!ag) {
     return `<div class="card chamfer agent"><div class="agent-head"><h2>Agent</h2></div>
@@ -622,6 +632,7 @@ function agentCard(ag, hasIncident) {
         <div class="dcol"><span class="dnum ${n ? "warn" : "ok"}">${n}</span><span class="dlbl">This plan</span></div>
         <div class="dcap">racks overheating<br>in the next hour</div>
       </div>` : `<div class="delta2 flat"><div class="dcol"><span class="dnum ok">0</span><span class="dlbl">at risk</span></div><div class="dcap">No racks at risk either way.<br>This plan restores the failed equipment.</div></div>`}
+      ${moneyRow(ag.baseline?.usd_at_risk, p.outcome.usd_at_risk)}
       <p>${esc(p.reason)}</p>
       ${ag.decision ? (chosen ? `<p class="ok-note">Approved at minute ${ag.decision.minute}. Logged for the next shift${ag.decision.work_order ? " and a work order was created" : ""}.</p>` : "")
         : `<div class="plan-btns"><button class="btn approve cut" data-approve="${i}">Approve plan</button><button class="btn link-btn" data-dismiss="${i}">Dismiss</button></div>`}

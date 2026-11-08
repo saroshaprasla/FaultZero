@@ -45,7 +45,7 @@
   <section class="beat" id="b0">
     <div class="copy">
       <h1>Every app you used today runs in a building that can never stop.</h1>
-      <p>Thousands of servers, cooled and powered every second of every night. This data hall is simulated and runs on real Dallas weather.</p>
+      <p>Thousands of servers, cooled and powered every second of every night. This data hall is simulated: a hot August night in Dallas.</p>
       <p class="hint">Scroll to see one night go wrong</p>
     </div>
   </section>
@@ -80,6 +80,7 @@
         <li><b>Test the fix first</b><span>An AI agent tries each plan in the twin. You approve the one that works.</span></li>
         <li><b>Hand off the shift</b><span>Every decision is logged, so the next operator gets the whole story.</span></li>
       </ol>
+      <p class="proof" id="proof" hidden></p>
       <div class="cta-row">
         <a class="btn cta" href="/control">Enter the control room</a>
         <span class="cta-note">Then use “Test the facility” to break it yourself.</span>
@@ -95,5 +96,14 @@
 } }
 </script>
 <script type="module" src="/static/story.js"></script>
+<script>
+fetch("/api/eval").then(r => r.json()).then(d => {
+  const e = d.equipment_failures; if (!e) return;
+  const t = e.faultzero_twin, l = e.straight_line_forecast, f = e.fixed_alarm;
+  const el = document.getElementById("proof");
+  el.innerHTML = `<b>Tested on ${d.setup.incidents} simulated failures.</b> In the ${t.incidents_that_really_overheated} equipment failures that overheated a rack, the facility's alarm never warned ahead of time. FaultZero warned every time, a median <b>${t.median_minutes_of_warning} minutes</b> early, and beat a trend-line forecast in ${e.twin_warned_earlier_than_straight_line} of them. Its tamper check flagged all ${d.tampered_or_silent_sensors.really_overheated} hidden-sensor attacks that the alarm missed.`;
+  el.hidden = false;
+}).catch(() => {});
+</script>
 </body>
 </html>

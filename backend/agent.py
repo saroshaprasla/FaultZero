@@ -130,7 +130,20 @@ def _outcome(twin) -> dict:
                 over_minutes += 1
     first = min((c["minutes"] for c in warn), default=None)
     return {"racks_at_risk": len(racks), "racks_critical": len(crit), "rack_minutes_over_27c": over_minutes,
-            "first_rack_warning_in_min": first}
+            "first_rack_warning_in_min": first, "usd_at_risk": _usd_at_risk(res["frames"])}
+
+
+def _usd_at_risk(frames) -> Optional[int]:
+    """Illustrative $ exposure over the predicted hour, using business/impact.py on every
+    future minute (each frame counts as 1/60 of an hour)."""
+    try:
+        from business.impact import calculate_impact
+    except Exception:
+        return None
+    total = 0.0
+    for fr in frames:
+        total += calculate_impact(fr, exposure_hours=1 / 60)["estimated_exposure_usd"]
+    return int(round(total, -1))
 
 
 def baseline(facility) -> dict:
