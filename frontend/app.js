@@ -473,6 +473,7 @@ function renderSide(snap, cascade) {
     inc = `<div class="card chamfer incident ${racks ? "alert" : "calm"}">
       <div class="inc-head"><span class="inc-dot"></span><h2>${esc(a ? a.name : first.asset)} ${KIND[first.kind] || first.kind}</h2></div>
       <p class="inc-sub">${snap.minute - first.minute} min ago${uniq > 1 ? `, plus ${uniq - 1} more failure${uniq > 2 ? "s" : ""}` : ""}</p>
+      ${raceHtml(snap, first, cascade)}
       <div class="readouts2">
         <div><b class="${racks ? "hot" : ""}">${racks}</b><span>racks at risk this hour</span></div>
         <div><b>${next ? `+${Math.round(next.minutes)}` : "–"}<small>${next ? " min" : ""}</small></b><span>${next ? esc(next.text) : "nothing else predicted"}</span></div>
@@ -482,6 +483,7 @@ function renderSide(snap, cascade) {
 
   // agent card
   setSlot("slot-agent", agentCard(snap.agent, failures.length));
+  speakBriefing(snap, cascade);
 
   // selected equipment card
   let html = "";
@@ -499,6 +501,92 @@ function renderSide(snap, cascade) {
   }
   // the sparkline changes every tick; keep the asset card live but separate from the buttons above
   $("slot-asset").innerHTML = html;
+}
+
+// ---------- head start: FaultZero vs the facility's own threshold alarms ----------
+const race = { key: null, alarmAt: null };
+function raceHtml(snap, first, cascade) {
+  const key = `${first.asset}|${first.minute}`;
+  if (race.key !== key) { race.key = key; race.alarmAt = null; }
+  // a normal facility alarm fires when any rack *sensor reading* crosses 27°C (a lying sensor never alarms)
+  const firing = Object.entries(snap.assets).some(([k, v]) => k.startsWith("RACK-") && (v.inlet_temp_c ?? 0) >= 27);
+  if (firing && race.alarmAt === null) race.alarmAt = snap.minute;
+  const warnedAt = first.minute;
+  const clock = m => { const t = new Date(new Date(snap.t).getTime() - (snap.minute - m) * 60000); return t.toTimeString().slice(0, 5); };
+  const fixed = snap.agent && snap.agent.decision;
+  const nextAlarm = cascade.filter(c => assets[c.id].type === "rack" && c.minutes > 0 && !c.tamper).map(c => c.minutes);
+  const spoof = (snap.events || []).some(e => e.kind === "sensor_spoof");
+  let alarmText, lead, state;
+  if (race.alarmAt !== null) {
+    lead = race.alarmAt - warnedAt;
+    alarmText = `fired at ${clock(race.alarmAt)}`;
+    state = "fired";
+  } else if (fixed && !nextAlarm.length) {
+    lead = snap.minute - warnedAt;
+    alarmText = "never fired. Fixed first";
+    state = "beat";
+  } else if (spoof && !nextAlarm.length) {
+    lead = snap.minute - warnedAt;
+    alarmText = "silent. The sensor is lying";
+    state = "blind";
+  } else {
+    lead = snap.minute - warnedAt;
+    alarmText = nextAlarm.length ? `silent, fires in ~${Math.round(Math.min(...nextAlarm))} min` : "silent";
+    state = "waiting";
+  }
+  const verdict = state === "fired" ? `FaultZero warned <b>${lead} min</b> before the alarms`
+    : state === "beat" ? `Fixed before any alarm. <b>${lead} min</b> head start`
+    : state === "blind" ? `Alarms can't see this. FaultZero can`
+    : `<b>${lead} min</b> head start and counting`;
+  const pct = state === "fired" ? 100 : Math.min(92, 12 + lead * 6);
+  return `<div class="race ${state}">
+    <div class="race-row fz"><span class="who">FaultZero</span><span class="lane"><i style="width:100%"></i></span><span class="when">warned ${clock(warnedAt)}</span></div>
+    <div class="race-row al"><span class="who">Alarms</span><span class="lane"><i style="width:${pct}%"></i></span><span class="when">${alarmText}</span></div>
+    <div class="race-verdict">${verdict}</div>
+  </div>`;
+}
+
+// ---------- voice briefing (browser speech, works offline) ----------
+const voice = { on: true, said: new Set() };
+try { voice.on = localStorage.getItem("fz-voice") !== "off"; } catch {}
+function say(text, key) {
+  if (!voice.on || !("speechSynthesis" in window) || voice.said.has(key)) return;
+  voice.said.add(key);
+  const u = new SpeechSynthesisUtterance(text);
+  const v = speechSynthesis.getVoices().find(v => /en(-|_)US/i.test(v.lang) && /Samantha|Google US|Ava|Allison|Zira/i.test(v.name))
+    || speechSynthesis.getVoices().find(v => /^en/i.test(v.lang));
+  if (v) u.voice = v;
+  u.rate = 1.04; u.pitch = 1;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(u);
+}
+function speakBriefing(snap, cascade) {
+  const ag = snap.agent, failures = (snap.events || []).filter(e => e.type === "failure");
+  if (!ag || !failures.length) return;
+  const first = failures[0], a = assets[first.asset];
+  const KIND = { chiller_trip: "tripped", grid_loss: "lost utility power", fan_degradation: "has a failing fan", sensor_silent: "sensor went silent", sensor_spoof: "sensor has been tampered with" };
+  const key = `${first.asset}|${first.minute}`;
+  if (ag.status === "done" && ag.plans.length && !ag.decision) {
+    const p = ag.plans[0], base = ag.baseline.racks_at_risk, n = p.outcome.racks_at_risk;
+    const firstMin = cascade.filter(c => assets[c.id].type === "rack" && c.minutes > 0).map(c => c.minutes);
+    const name = p.name.replace(/^Plan [A-Z]:\s*/, "");
+    say(`${a.name} ${KIND[first.kind] || ""}. ` +
+        (base ? `${base} racks will overheat within the hour${firstMin.length ? `, the first in ${Math.round(Math.min(...firstMin))} minutes` : ""}. ` : "") +
+        `I recommend: ${name}. ${n === 0 ? "It keeps every rack safe." : `It cuts that to ${n}.`} Approve when ready.`, "brief|" + key);
+  }
+  if (ag.decision) say("Plan approved. The chain is broken.", "done|" + key);
+}
+function setupVoice() {
+  const b = $("voice-btn");
+  const paint = () => { b.setAttribute("aria-pressed", String(voice.on)); b.textContent = voice.on ? "Voice on" : "Voice off"; };
+  paint();
+  b.onclick = () => {
+    voice.on = !voice.on;
+    try { localStorage.setItem("fz-voice", voice.on ? "on" : "off"); } catch {}
+    if (!voice.on && "speechSynthesis" in window) speechSynthesis.cancel();
+    paint();
+  };
+  if ("speechSynthesis" in window) speechSynthesis.getVoices();
 }
 
 function agentCard(ag, hasIncident) {
@@ -527,10 +615,12 @@ function agentCard(ag, hasIncident) {
     return `<div class="plan chamfer${i === 0 ? " best" : ""}${chosen ? " chosen" : ""}${other ? " faded" : ""}">
       <div class="plan-top"><span class="plan-rank">${String(i + 1).padStart(2, "0")}</span><span class="plan-tag">${chosen ? "Approved" : i === 0 ? "Recommended" : "Alternative"}</span></div>
       <h3>${esc(p.name.replace(/^Plan [A-Z]:\s*/, ""))}</h3>
-      ${base || n ? `<div class="delta" aria-label="${n} racks overheat with this plan, ${base} if nothing is done">
-        <div class="delta-nums"><span class="d-from">${base}</span><span class="d-arrow" aria-hidden="true"></span><span class="d-to ${n ? "warn" : "ok"}">${n}</span></div>
-        <div class="delta-lbl">racks overheating in the next hour<br><span>if nothing is done, then with this plan</span></div>
-      </div>` : `<div class="delta flat"><div class="delta-nums"><span class="d-to ok">0</span></div><div class="delta-lbl">racks at risk either way<br><span>this plan restores the failed equipment</span></div></div>`}
+      ${base || n ? `<div class="delta2" aria-label="${n} racks overheat with this plan, ${base} if nothing is done">
+        <div class="dcol"><span class="dnum from">${base}</span><span class="dlbl">Do nothing</span></div>
+        <span class="d-arrow" aria-hidden="true"></span>
+        <div class="dcol"><span class="dnum ${n ? "warn" : "ok"}">${n}</span><span class="dlbl">This plan</span></div>
+        <div class="dcap">racks overheating<br>in the next hour</div>
+      </div>` : `<div class="delta2 flat"><div class="dcol"><span class="dnum ok">0</span><span class="dlbl">at risk</span></div><div class="dcap">No racks at risk either way.<br>This plan restores the failed equipment.</div></div>`}
       <p>${esc(p.reason)}</p>
       ${ag.decision ? (chosen ? `<p class="ok-note">Approved at minute ${ag.decision.minute}. Logged for the next shift${ag.decision.work_order ? " and a work order was created" : ""}.</p>` : "")
         : `<div class="plan-btns"><button class="btn approve cut" data-approve="${i}">Approve plan</button><button class="btn link-btn" data-dismiss="${i}">Dismiss</button></div>`}
@@ -639,6 +729,7 @@ function setupMenu() {
     await post("/api/reset");
     Object.keys(hist).forEach(k => delete hist[k]);
     lastEventCount = 0; selected = null; stepsShown = 0; close();
+    voice.said.clear(); race.key = null; if ("speechSynthesis" in window) speechSynthesis.cancel();
     preview.plan = null; preview.data = null; setMinute(0);
     if (scene3d) { scene3d.select(null); scene3d.resetView(); }
   };
@@ -692,6 +783,7 @@ function setView(v) {
   setupScrubber();
   setupHandoff();
   setupTimelineClicks();
+  setupVoice();
   const es = new EventSource("/api/stream");
   es.onmessage = e => update(JSON.parse(e.data));
 })();

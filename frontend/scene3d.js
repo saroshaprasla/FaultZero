@@ -52,7 +52,7 @@ export class Scene3D {
     container.appendChild(this.labels.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.fog = new THREE.FogExp2(0x060b16, 0.02);
+    this.scene.fog = new THREE.FogExp2(0x060b16, 0.013);
     this.camera = new THREE.PerspectiveCamera(38, w / h, 0.1, 400);
 
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
@@ -60,7 +60,7 @@ export class Scene3D {
     this.controls.dampingFactor = 0.07;
     this.controls.maxPolarAngle = 1.32;
     this.controls.minDistance = 6;
-    this.controls.maxDistance = 70;
+    this.controls.maxDistance = 42;
     this.controls.autoRotateSpeed = 0.35;
     this.controls.addEventListener("start", () => { this.userMoved = true; this.controls.autoRotate = false; });
     this.interactive = interactive;
@@ -212,6 +212,7 @@ export class Scene3D {
   }
 
   buildRowLabels(list) {
+    if (!this.interactive) return;  // story page has its own progress rail on the right
     "ABCD".split("").forEach(r => {
       const racks = list.filter(a => a.id.startsWith(`RACK-${r}`));
       if (!racks.length) return;

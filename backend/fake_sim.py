@@ -64,7 +64,13 @@ class FakeFacility:
         self.hidden_heat: Dict[str, float] = {}  # extra heat an attacker hides behind a spoofed sensor
 
     # ---------- failures and actions ----------
-    def inject(self, kind: str, asset: Optional[str] = None) -> dict:
+    def inject(self, kind: str, asset: Optional[str] = None, severity: float = 1.0) -> dict:
+        """severity 0-1: how bad the failure is. 1.0 (default) = complete failure.
+        chiller_trip     -> fraction of cooling capacity lost (0.5 = half; 1.0 = tripped)
+        fan_degradation  -> how fast the fan wears out (1.0 = 2.5% of speed lost per minute)
+        sensor_spoof     -> how much extra load the attacker hides
+        grid_loss, sensor_silent -> all-or-nothing, severity is ignored"""
+        severity = max(0.05, min(1.0, float(severity)))
         if kind not in FAILURE_KINDS:
             raise ValueError(f"unknown failure kind: {kind}")
         if asset is None:
@@ -73,9 +79,11 @@ class FakeFacility:
         if asset not in self.assets:
             raise ValueError(f"unknown asset: {asset}")
         if kind == "chiller_trip":
-            self.s[asset]["status"] = "tripped"
+            self.s[asset]["status"] = "tripped" if severity >= 0.99 else "degraded"
+            self.s[asset]["capacity"] = round(1 - severity, 2)
         elif kind == "fan_degradation":
             self.s[asset]["status"] = "degrading"
+            self.s[asset]["wear_rate"] = round(2.5 * severity, 2)
         elif kind == "grid_loss":
             self.s["UTIL"]["status"] = "down"
         elif kind == "sensor_silent":
@@ -85,9 +93,9 @@ class FakeFacility:
             # attacker overloads the rack, so the real temperature climbs where nobody sees it
             self.s[asset]["sensor"] = "spoofed"
             self.reported[asset] = self.s[asset]["inlet_temp_c"]
-            self.s[asset]["power_kw"] = round(self.s[asset]["power_kw"] * 2.3, 1)
-            self.hidden_heat[asset] = 6.0
-        ev = {"minute": self.minute, "type": "failure", "kind": kind, "asset": asset}
+            self.s[asset]["power_kw"] = round(self.s[asset]["power_kw"] * (1 + 1.3 * severity), 1)
+            self.hidden_heat[asset] = 6.0 * severity
+        ev = {"minute": self.minute, "type": "failure", "kind": kind, "asset": asset, "severity": severity}
         self.events.append(ev)
         return ev
 
@@ -95,7 +103,7 @@ class FakeFacility:
         if action == "start_backup_chiller":
             self.s["CH-3"].update(status="ok", load_pct=80.0)
             for i, a in self.assets.items():  # backup takes over the CRAHs of any tripped chiller
-                if a["type"] == "chiller" and self.s[i]["status"] == "tripped":
+                if a["type"] == "chiller" and self.s[i]["status"] in ("tripped", "degraded"):
                     for crah in a["feeds"]:
                         self.fed_by[crah] = ["CH-3"]
         elif action == "raise_fan_speed":
@@ -150,6 +158,10 @@ class FakeFacility:
             if c["status"] == "ok":
                 c["supply_temp_c"] += (7.0 - c["supply_temp_c"]) * 0.3
                 c["load_pct"] = round(min(100, 65 + (self.outdoor_temp_c() - 30) * 3 + rng.uniform(-2, 2)), 1)
+            elif c["status"] == "degraded":  # partial capacity: water settles warmer the more capacity is lost
+                target = 7.0 + (1 - c.get("capacity", 1.0)) * 15.0
+                c["supply_temp_c"] += (target - c["supply_temp_c"]) * 0.15
+                c["load_pct"] = 100.0
             elif c["status"] in ("tripped", "no_power"):
                 c["supply_temp_c"] = min(22.0, c["supply_temp_c"] + 1.2)
                 c["load_pct"] = 0.0
@@ -161,7 +173,7 @@ class FakeFacility:
                 continue
             u = s[i]
             if u["status"] == "degrading":
-                u["fan_pct"] = max(10.0, u["fan_pct"] - 2.5)
+                u["fan_pct"] = max(10.0, u["fan_pct"] - u.get("wear_rate", 2.5))
             chillers = [c for c in self.fed_by[i] if self.assets[c]["type"] == "chiller"]
             water = min(s[c]["supply_temp_c"] for c in chillers) if chillers else 22.0
             power = 1.0 if (grid_ok or gen_ok) else 0.0

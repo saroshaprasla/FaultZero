@@ -130,6 +130,7 @@ async def stream():
 class InjectRequest(BaseModel):
     kind: str
     asset: Optional[str] = None
+    severity: float = 1.0
 
 
 class ActionRequest(BaseModel):
@@ -140,7 +141,7 @@ class ActionRequest(BaseModel):
 @app.post("/api/inject")
 def inject(req: InjectRequest):
     try:
-        ev = state["facility"].inject(req.kind, req.asset)
+        ev = state["facility"].inject(req.kind, req.asset, req.severity)
     except ValueError as e:
         raise HTTPException(400, str(e))
     start_agent()
