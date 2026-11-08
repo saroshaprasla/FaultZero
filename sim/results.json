@@ -1,0 +1,12 @@
+{
+  "incidents": 200,
+  "actual_crossings": 101,
+  "ml_detected_early": 34,
+  "linear_detected_early": 68,
+  "ml_detection_rate": 0.33663366336633666,
+  "linear_detection_rate": 0.6732673267326733,
+  "ml_median_warning_min": 5.0,
+  "linear_median_warning_min": 5.0,
+  "ml_false_alert_incidents": 0,
+  "linear_false_alert_incidents": 0
+}
