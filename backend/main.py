@@ -202,7 +202,11 @@ def agent_approve(choice: PlanChoice):
              "actions": plan["actions"], "predicted": plan["outcome"], "source": run.state["source"]}
     try:  # Naomi's dispatch creates the work order when it exists
         from business.dispatch import create_work_order  # type: ignore
-        entry["work_order"] = create_work_order(plan, run.state)
+        wo = create_work_order(plan, run.state)
+        if isinstance(wo, dict) and wo.get("technician"):
+            from business.dispatch import TECHNICIANS  # type: ignore
+            wo["technician_name"] = next((t["name"] for t in TECHNICIANS if t["id"] == wo["technician"]), None)
+        entry["work_order"] = wo if isinstance(wo, dict) and wo.get("id") else None
     except Exception:
         entry["work_order"] = None
     log_decision(entry)
@@ -337,7 +341,7 @@ def qr(request: Request):
         svg = buf.getvalue().decode()
     except ImportError:
         raise HTTPException(500, "Run: pip install qrcode")
-    local = any(h in url for h in ("localhost", "127.0.0.1"))
+    local = any(h in url for h in ("localhost", "127.0.0.1", "0.0.0.0"))
     return {"url": url, "svg": svg, "local_only": local}
 
 

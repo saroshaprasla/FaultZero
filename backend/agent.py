@@ -204,7 +204,11 @@ class AgentRun:
             if not acts:
                 continue
             outcome = self.tools.simulate_plan(p.get("name", "Plan"), acts)  # verified numbers, never the model's
-            ranked.append({"name": p.get("name", "Plan"), "actions": acts, "reason": p.get("reason", ""), "outcome": outcome})
+            reason = str(p.get("reason", "")).strip()
+            if not reason or "$" in reason or "usd" in reason.lower() or "rack-minute" in reason.lower():
+                # numbers in the card come from the twin, so the text must not quote different ones
+                reason = _reason(acts, outcome["racks_at_risk"], self.base["racks_at_risk"])
+            ranked.append({"name": p.get("name", "Plan"), "actions": acts, "reason": reason, "outcome": outcome})
         ranked.sort(key=lambda p: (p["outcome"]["racks_at_risk"], p["outcome"]["rack_minutes_over_27c"], len(p["actions"])))
         self.state["plans"] = ranked
         self.state["status"] = "done" if ranked else "error"

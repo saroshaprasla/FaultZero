@@ -593,6 +593,17 @@ function setupVoice() {
 }
 
 const usd = n => "$" + Math.round(n).toLocaleString("en-US");
+function workOrderHtml(wo) {
+  if (!wo || !wo.id) return "";
+  const team = String(wo.team || "").replace(/^./, c => c.toUpperCase());
+  const who = wo.technician_name ? `${esc(wo.technician_name)} (${esc(wo.technician)})` : wo.technician ? esc(wo.technician) : "Waiting for a technician";
+  const part = wo.reserved_part ? `${esc(String(wo.reserved_part).replace(/_/g, " "))} reserved from ${esc(wo.spare_location || "stores")}` : "";
+  return `<div class="wo chamfer"><div class="wo-top"><span class="wo-id">${esc(wo.id)}</span><span class="wo-status ${wo.status === "assigned" ? "ok" : "warn"}">${wo.status === "assigned" ? "Dispatched" : "Waiting for parts or staff"}</span></div>
+    <div class="wo-row"><span>Team</span><b>${esc(team)}</b></div>
+    <div class="wo-row"><span>Technician</span><b>${who}</b></div>
+    ${wo.eta_minutes ? `<div class="wo-row"><span>On site in</span><b>${esc(wo.eta_minutes)} min</b></div>` : ""}
+    ${part ? `<div class="wo-row"><span>Part</span><b>${part}</b></div>` : ""}</div>`;
+}
 function moneyRow(from, to) {
   if (from == null || to == null || (!from && !to)) return "";
   const saved = Math.max(0, from - to);
@@ -634,7 +645,7 @@ function agentCard(ag, hasIncident) {
       </div>` : `<div class="delta2 flat"><div class="dcol"><span class="dnum ok">0</span><span class="dlbl">at risk</span></div><div class="dcap">No racks at risk either way.<br>This plan restores the failed equipment.</div></div>`}
       ${moneyRow(ag.baseline?.usd_at_risk, p.outcome.usd_at_risk)}
       <p>${esc(p.reason)}</p>
-      ${ag.decision ? (chosen ? `<p class="ok-note">Approved at minute ${ag.decision.minute}. Logged for the next shift${ag.decision.work_order ? " and a work order was created" : ""}.</p>` : "")
+      ${ag.decision ? (chosen ? `<p class="ok-note">Approved at minute ${ag.decision.minute}. Logged for the next shift.</p>${workOrderHtml(ag.decision.work_order)}` : "")
         : `<div class="plan-btns"><button class="btn approve cut" data-approve="${i}">Approve plan</button><button class="btn link-btn" data-dismiss="${i}">Dismiss</button></div>`}
     </div>`;
   }).join("");
