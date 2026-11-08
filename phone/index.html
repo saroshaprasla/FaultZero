@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>FaultZero | Break the Data Center</title>
+  <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+    :root {
+      color-scheme: dark;
+      font-family: Barlow, system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: #0f1a2c;
+      color: #e4ecf7;
+      padding: 24px;
+    }
+    main { max-width: 460px; margin: 30px auto; }
+    .eyebrow { color: #40d9ed; letter-spacing: 3px; font-size: 12px; }
+    h1 { font-size: clamp(34px, 9vw, 52px); margin: 14px 0; }
+    p { color: #a5b7c8; line-height: 1.6; }
+    .status {
+      border: 1px solid #28465b;
+      border-radius: 14px;
+      padding: 16px;
+      margin: 25px 0;
+      background: #101e2d;
+      min-height: 56px;
+    }
+    .buttons { display: grid; gap: 14px; }
+    button {
+      width: 100%;
+      min-height: 80px;
+      border: 1px solid #34536b;
+      border-radius: 16px;
+      background: #142638;
+      color: white;
+      text-align: left;
+      padding: 18px;
+      font: 600 18px Barlow, system-ui, sans-serif;
+      cursor: pointer;
+    }
+    button:active { transform: scale(.98); }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+    button span { display: block; color: #93b2c9; font-size: 12px; margin-top: 5px; }
+    .danger { border-color: #c95454; }
+    .success { color: #55e6b4; }
+    .error { color: #ff8585; }
+    footer { margin-top: 32px; font-size: 12px; color: #7890a5; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">FAULTZERO // LIVE SIMULATION</div>
+  <h1>Break my<br>data center.</h1>
+  <p>Choose a failure. Watch the digital twin predict what happens next.</p>
+
+  <div id="status" class="status" role="status" aria-live="polite">
+    SYSTEM READY — Choose a failure below.
+  </div>
+
+  <div class="buttons">
+    <button class="danger" data-kind="chiller_trip" data-asset="CH-2">
+      ❄️ Trip Chiller 2
+      <span>Disable a critical cooling system</span>
+    </button>
+    <button data-kind="fan_degradation" data-asset="CRAH-4">
+      🌪️ Kill Cooling Fan
+      <span>Reduce cooling airflow</span>
+    </button>
+    <button data-kind="grid_loss">
+      ⚡ Cut Grid Power
+      <span>Force the facility onto backup power</span>
+    </button>
+    <button data-kind="sensor_spoof" data-asset="RACK-C3">
+      🛡️ Hack a Sensor
+      <span>Hide a dangerous temperature reading</span>
+    </button>
+  </div>
+
+  <footer>SIMULATED INCIDENTS ONLY · NO REAL EQUIPMENT CONTROLLED</footer>
+<button id="reset" type="button" hidden>Reset simulation</button>
+</main>
+
+<script>
+  const resetButton = document.getElementById("reset");
+
+  document.addEventListener("keydown", event => {
+    if (event.altKey && event.shiftKey && event.key.toLowerCase() === "r") {
+      resetButton.hidden = !resetButton.hidden;
+    }
+  });
+
+  resetButton.addEventListener("click", async () => {
+    try {
+      const response = await fetch("/api/reset", {method: "POST"});
+      if (!response.ok) throw new Error("HTTP " + response.status);
+      cooldownUntil = 0;
+      setDisabled(false);
+      setStatus("Simulation reset.", "success");
+    } catch (error) {
+      setStatus("Reset failed: " + error.message, "error");
+    }
+  });
+
+  const statusBox = document.getElementById("status");
+  const buttons = [...document.querySelectorAll("button[data-kind]")];
+  let busy = false;
+  let cooldownUntil = 0;
+
+  function setStatus(message, className = "") {
+    statusBox.textContent = message;
+    statusBox.className = "status " + className;
+  }
+
+  function setDisabled(value) {
+    buttons.forEach(button => button.disabled = value);
+  }
+
+  buttons.forEach(button => {
+    button.addEventListener("click", async () => {
+      if (busy || Date.now() < cooldownUntil) return;
+      busy = true;
+      setDisabled(true);
+      setStatus("Injecting simulated failure...");
+
+      const payload = { kind: button.dataset.kind };
+      if (button.dataset.asset) payload.asset = button.dataset.asset;
+
+      try {
+        const response = await fetch("/api/inject", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+
+        if (!response.ok) {
+          throw new Error("Server returned " + response.status);
+        }
+
+        setStatus("You broke it! Watch the big screen.", "success");
+        cooldownUntil = Date.now() + 30000;
+        setTimeout(() => setDisabled(false), 30000);
+      } catch (error) {
+        setStatus("Injection failed: " + error.message, "error");
+        setDisabled(false);
+      } finally {
+        busy = false;
+      }
+    });
+  });
+</script>
+</body>
+</html>
