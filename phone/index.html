@@ -9,47 +9,85 @@
     :root {
       color-scheme: dark;
       font-family: Barlow, system-ui, sans-serif;
+      --bg: #060b16;
+      --card: #0c1526;
+      --border: #24406b;
+      --text: #f2f7ff;
+      --muted: #8c9dbb;
+      --cyan: #22e9ff;
+      --danger: #ff2e63;
+      --mint: #19f5b0;
     }
     * { box-sizing: border-box; }
     body {
       margin: 0;
       min-height: 100vh;
-      background: #0f1a2c;
-      color: #e4ecf7;
+      background: var(--bg);
+      color: var(--text);
       padding: 24px;
     }
     main { max-width: 460px; margin: 30px auto; }
-    .eyebrow { color: #40d9ed; letter-spacing: 3px; font-size: 12px; }
-    h1 { font-size: clamp(34px, 9vw, 52px); margin: 14px 0; }
-    p { color: #a5b7c8; line-height: 1.6; }
+    .eyebrow {
+      color: var(--cyan);
+      letter-spacing: 3px;
+      font-size: 12px;
+    }
+    h1 {
+      font-size: clamp(34px, 9vw, 52px);
+      margin: 14px 0;
+    }
+    p { color: var(--muted); line-height: 1.6; }
     .status {
-      border: 1px solid #28465b;
-      border-radius: 14px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
       padding: 16px;
       margin: 25px 0;
-      background: #101e2d;
+      background: var(--card);
       min-height: 56px;
     }
     .buttons { display: grid; gap: 14px; }
     button {
       width: 100%;
       min-height: 80px;
-      border: 1px solid #34536b;
-      border-radius: 16px;
-      background: #142638;
-      color: white;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--card);
+      color: var(--text);
       text-align: left;
       padding: 18px;
       font: 600 18px Barlow, system-ui, sans-serif;
       cursor: pointer;
+      transition: border-color .2s, box-shadow .2s;
     }
-    button:active { transform: scale(.98); }
-    button:disabled { opacity: .45; cursor: not-allowed; }
-    button span { display: block; color: #93b2c9; font-size: 12px; margin-top: 5px; }
-    .danger { border-color: #c95454; }
-    .success { color: #55e6b4; }
-    .error { color: #ff8585; }
-    footer { margin-top: 32px; font-size: 12px; color: #7890a5; }
+    button:hover:not(:disabled) {
+      border-color: var(--danger);
+      box-shadow: 0 0 18px rgba(255,46,99,.35);
+    }
+    button:active:not(:disabled) {
+      transform: scale(.98);
+    }
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+    button span {
+      display: block;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 5px;
+    }
+    .danger { border-color: var(--danger); }
+    .success {
+      color: var(--mint);
+      text-shadow: 0 0 16px rgba(25,245,176,.5);
+    }
+    .error { color: var(--danger); }
+    footer {
+      margin-top: 32px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    [hidden] { display: none !important; }
   </style>
 </head>
 <body>
