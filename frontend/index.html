@@ -29,6 +29,7 @@
       <div class="readout risk zero" id="risk-wrap"><span class="num" id="risk">0</span><span class="lbl">racks at risk</span></div>
     </div>
 
+    <button class="btn judge-btn" id="qr-btn" title="Show a QR code so a judge can break the data center from their phone">Judge QR</button>
     <button class="btn" id="voice-btn" aria-pressed="true" title="Read the agent's briefing aloud">Voice on</button>
     <button class="btn" id="handoff-btn">End shift</button>
     <div class="menu-wrap">
@@ -93,6 +94,17 @@
     </div>
   </section>
 </div>
+<div class="qr-modal" id="qr-modal" role="dialog" aria-modal="true" aria-labelledby="qr-title" hidden>
+  <div class="qr-panel chamfer">
+    <button class="btn ghost qr-close" id="qr-close" aria-label="Close">Close</button>
+    <h2 id="qr-title">Break our data center</h2>
+    <p>Scan with your phone camera, pick a failure, and watch this screen.</p>
+    <div class="qr-code" id="qr-code" aria-label="QR code to the break page"></div>
+    <div class="qr-url" id="qr-url"></div>
+    <p class="qr-warn" id="qr-warn" hidden></p>
+  </div>
+</div>
+
 <div class="handoff" id="handoff" role="dialog" aria-modal="true" aria-labelledby="ho-title" hidden>
   <div class="ho-panel">
     <header class="ho-top">

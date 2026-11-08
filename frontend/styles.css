@@ -627,3 +627,23 @@ html, body { background: radial-gradient(1200px 700px at 35% 30%, #0b1630 0%, #0
 
 /* timeline: keep the empty note clear of the axis labels */
 .tl-empty { top: auto; bottom: calc(50% + 12px); }
+
+/* ---------- judge QR ---------- */
+.judge-btn { border-color: var(--future) !important; color: var(--future); box-shadow: 0 0 16px rgba(34, 233, 255, .2); }
+.qr-modal { position: fixed; inset: 0; z-index: 70; display: grid; place-items: center; background: rgba(4, 8, 16, .78); backdrop-filter: blur(8px); animation: fadeIn .25s ease; }
+.qr-modal[hidden] { display: none; }
+.qr-panel { --cut: 22px; --hair: var(--future); --accent: var(--future); --fill: linear-gradient(160deg, #0b2233, #08101f 70%); padding: 30px 34px 26px; text-align: center; width: min(460px, 92vw); filter: drop-shadow(0 0 30px rgba(34, 233, 255, .25)); }
+.qr-panel h2 { margin: 0 0 6px; font-family: var(--font-num); font-size: 38px; }
+.qr-panel p { margin: 0 0 18px; color: var(--muted); }
+.qr-code { background: #fff; padding: 14px; width: 280px; height: 280px; margin: 0 auto; display: grid; place-items: center; }
+.qr-code svg { width: 100%; height: 100%; }
+.qr-url { margin-top: 14px; font-family: var(--font-num); font-size: 22px; color: var(--future); text-shadow: 0 0 12px rgba(34, 233, 255, .4); word-break: break-all; }
+.qr-warn { margin: 12px 0 0 !important; color: var(--warm) !important; font-size: 13px; }
+.qr-close { position: absolute; top: 14px; right: 14px; }
+@media (max-width: 1250px) { .judge-btn { display: none; } }
+.top { gap: 18px; padding: 12px 20px; }
+.top > *, .top .readout .lbl, .status, .facility, .btn { white-space: nowrap; }
+.readouts { gap: 20px; }
+.readout .num { font-size: 24px; }
+@media (max-width: 1400px) { .facility { display: none; } }
+@media (max-width: 1250px) { .judge-btn { display: inline-block; } .readout:nth-child(2) { display: none; } }

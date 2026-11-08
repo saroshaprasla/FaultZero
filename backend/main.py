@@ -12,7 +12,10 @@ import time
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+import os
+
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import Response
 from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -310,6 +313,30 @@ def handoff_ack(ack: Ack):
     with open(ACKS, "a") as f:
         f.write(json.dumps(entry) + "\n")
     return entry
+
+
+# ---------- QR code for judges' phones ----------
+def break_url(request: Request) -> str:
+    """PUBLIC_URL in .env wins (set it after deploying); otherwise use the address the page was opened from."""
+    base = os.environ.get("PUBLIC_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
+    return f"{base}/break"
+
+
+@app.get("/api/qr")
+def qr(request: Request):
+    url = break_url(request)
+    try:
+        import io
+        import qrcode
+        import qrcode.image.svg
+        img = qrcode.make(url, image_factory=qrcode.image.svg.SvgPathImage, box_size=10, border=2)
+        buf = io.BytesIO()
+        img.save(buf)
+        svg = buf.getvalue().decode()
+    except ImportError:
+        raise HTTPException(500, "Run: pip install qrcode")
+    local = any(h in url for h in ("localhost", "127.0.0.1"))
+    return {"url": url, "svg": svg, "local_only": local}
 
 
 @app.get("/api/options")

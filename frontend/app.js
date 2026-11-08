@@ -167,6 +167,7 @@ function update(snap) {
   const fresh = evs.filter(e => e.minute >= 0).slice(lastEventCount > evs.length ? 0 : lastEventCount);
   fresh.forEach(e => {
     if (e.type !== "failure") return;
+    if (!$("qr-modal").hidden) $("qr-modal").hidden = true;
     ripple(e.asset);
     if (scene3d) scene3d.failure(e.asset);
     const f = $("screen-flash"); f.classList.remove("go"); void f.offsetWidth; f.classList.add("go");
@@ -671,6 +672,27 @@ function closeHandoff() {
   $("handoff").hidden = true;
   if (lastFocus) lastFocus.focus();
 }
+// ---------- QR for judges ----------
+async function openQR() {
+  $("qr-modal").hidden = false;
+  $("qr-close").focus();
+  try {
+    const q = await (await fetch("/api/qr")).json();
+    $("qr-code").innerHTML = q.svg.replace(/<\?xml[^>]*>/, "");
+    $("qr-url").textContent = q.url.replace(/^https?:\/\//, "");
+    $("qr-warn").hidden = !q.local_only;
+    $("qr-warn").textContent = "This address only works on this laptop. Open the control room using your Wi-Fi IP or your domain so phones can reach it.";
+  } catch {
+    $("qr-code").textContent = "Couldn't make the QR code. Run: pip install qrcode";
+  }
+}
+function setupQR() {
+  $("qr-btn").onclick = openQR;
+  $("qr-close").onclick = () => { $("qr-modal").hidden = true; $("qr-btn").focus(); };
+  $("qr-modal").addEventListener("click", e => { if (e.target.id === "qr-modal") $("qr-modal").hidden = true; });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") $("qr-modal").hidden = true; });
+}
+
 function setupTimelineClicks() {
   $("tl").addEventListener("click", e => { const t = e.target.closest("[data-id]"); if (t) select(t.dataset.id); });
 }
@@ -784,6 +806,7 @@ function setView(v) {
   setupHandoff();
   setupTimelineClicks();
   setupVoice();
+  setupQR();
   const es = new EventSource("/api/stream");
   es.onmessage = e => update(JSON.parse(e.data));
 })();
